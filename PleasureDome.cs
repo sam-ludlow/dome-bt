@@ -64,7 +64,7 @@ namespace dome_bt
 
 				Globals.Magnets.Add(assetType, new MagnetInfo(node.InnerText, version, href));
 
-				Console.WriteLine($"Magnet Link Parsed:\t{assetType}\t{version}\t{name}\t{node.InnerText}\t{href.Length}");
+				Console.WriteLine($"Magnet Link Parsed:\t{assetType}\t{version}\t{name}\t{node.InnerText}\t{href}");
 			}
 
 			if (Globals.Magnets.Count != 4)

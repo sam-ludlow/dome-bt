@@ -4,6 +4,42 @@ namespace dome_bt
 {
 	public class Tools
 	{
+		private static readonly char[] _HeadingChars = new char[] { ' ', '#', '=', '-' };
+
+		public static void ConsoleRule(int head)
+		{
+			Console.WriteLine(new String(_HeadingChars[head], Console.WindowWidth - 1));
+		}
+
+		public static void ConsoleHeading(int head, string line)
+		{
+			ConsoleHeading(head, new string[] { line });
+		}
+		public static void ConsoleHeading(int head, string[] lines)
+		{
+			ConsoleRule(head);
+
+			char ch = _HeadingChars[head];
+
+			foreach (string line in lines)
+			{
+				int pad = Console.WindowWidth - 3 - line.Length;
+				if (pad < 1)
+					pad = 1;
+				int odd = pad % 2;
+				pad /= 2;
+
+				Console.Write(ch);
+				Console.Write(new String(' ', pad));
+				Console.Write(line);
+				Console.Write(new String(' ', pad + odd));
+				Console.Write(ch);
+				Console.WriteLine();
+			}
+
+			ConsoleRule(head);
+		}
+
 		public static string? FetchCached(string url)
 		{
 			string filename = Path.Combine(Globals.DirectoryCache, Tools.ValidFileName(url.Substring(8)));
