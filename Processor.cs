@@ -1,7 +1,7 @@
 ﻿using System.Reflection;
+using System.Diagnostics;
+
 using MonoTorrent.Client;
-using MonoTorrent;
-using MonoTorrent.Connections;
 
 namespace dome_bt
 {
@@ -20,6 +20,9 @@ namespace dome_bt
 		public static string ListenAddress = "http://localhost:12381/";
 
 		public static BitTorrent BitTorrent;
+
+		public static DateTime StartTime = DateTime.Now;
+		public static DateTime ReadyTime = StartTime;
 
 		static Globals()
 		{
@@ -72,10 +75,12 @@ namespace dome_bt
 		{
 			PleasureDome.ParseMagentLinks();
 
-			WebServer webServer = new WebServer();
+			WebServer webServer = new ();
 			webServer.StartListener();
 
-			Globals.BitTorrent = new BitTorrent();
+			Process.Start(new ProcessStartInfo(Globals.ListenAddress) { UseShellExecute = true });
+
+			Globals.BitTorrent = new ();
 			Globals.BitTorrent.Run();
 
 		}

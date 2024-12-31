@@ -1,14 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Net;
+﻿using System.Net;
 using System.Reflection;
-using System.Security.AccessControl;
 using System.Text;
-using System.Threading.Tasks;
+using System.Web;
+
 using MonoTorrent;
 using MonoTorrent.Client;
+
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -94,7 +91,7 @@ namespace dome_bt
 
 										default:
 											context.Response.Headers["Content-Type"] = "text/html; charset=utf-8";
-											writer.WriteLine("Hello");
+											writer.WriteLine(HTML);
 											break;
 									}
 								}
@@ -140,8 +137,34 @@ namespace dome_bt
 		{
 			//	http://localhost:12381/api/info
 
-			dynamic results = new JArray();
+			dynamic json = new JObject();
 
+			json.version = Globals.AssemblyVersion;
+
+			json.half_open_connections = Globals.BitTorrent.Engine.ConnectionManager.HalfOpenConnections;
+			json.open_connections = Globals.BitTorrent.Engine.ConnectionManager.OpenConnections;
+
+			json.start_time = Globals.StartTime;
+
+			if (Globals.ReadyTime != Globals.StartTime)
+				json.ready_minutes = (Globals.ReadyTime - Globals.StartTime).TotalMinutes;
+
+			dynamic magnets = new JArray();
+			foreach (AssetType magnetType in Globals.Magnets.Keys)
+			{
+				dynamic result = new JObject();
+
+				result.type = magnetType.ToString();
+				result.name = Globals.Magnets[magnetType].Name;
+				result.version = Globals.Magnets[magnetType].Version;
+				result.magnet_link = Globals.Magnets[magnetType].Magnet;
+				result.torrent_available = Globals.Magnets[magnetType].TorrentManager != null ? "true" : "false";
+
+				magnets.Add(result);
+			}
+			json.magnets = magnets;
+
+			dynamic torrents = new JArray();
 			foreach (var torrentManager in Globals.BitTorrent.Engine.Torrents)
 			{
 				dynamic result = new JObject();
@@ -153,6 +176,12 @@ namespace dome_bt
 				if (torrentManager.Error != null)
 					result.error = torrentManager.Error.Exception.ToString();
 
+				result.open_connections = torrentManager.OpenConnections;
+
+				result.peers_available = torrentManager.Peers.Available;
+				result.peers_leechs = torrentManager.Peers.Leechs;
+				result.peers_seeds = torrentManager.Peers.Seeds;
+
 				dynamic files = new JArray();
 
 				foreach (var fileInfo in torrentManager.Files.Where(f => f.Priority != Priority.DoNotDownload && f.Priority != Priority.Normal))
@@ -161,6 +190,7 @@ namespace dome_bt
 
 					file.path = fileInfo.Path;
 					file.priority = fileInfo.Priority.ToString();
+					file.length = fileInfo.Length;
 					file.percent_complete = fileInfo.BitField.PercentComplete;
 
 					files.Add(file);
@@ -168,17 +198,22 @@ namespace dome_bt
 				}
 				result.files = files;
 
-				results.Add(result);
+				torrents.Add(result);
 			}
-
-			dynamic json = new JObject();
-			json.offset = 0;
-			json.limit = 0;
-			json.total = results.Count;
-			json.count = results.Count;
-			json.results = results;
+			json.torrents = torrents;
 
 			writer.WriteLine(json.ToString(Formatting.Indented));
+		}
+
+		public void _api_download(HttpListenerContext context, StreamWriter writer)
+		{
+			string filename = context.Request.QueryString["filename"] ?? throw new ApplicationException("filename not passed");
+
+			context.Response.Headers["Content-Type"] = "application/octet-stream";
+			context.Response.Headers["Content-Disposition"] = $"attachment; filename=\"{Path.GetFileName(filename)}\"";
+
+			using (FileStream fileStream = new FileStream(filename, FileMode.Open))
+				fileStream.CopyTo(context.Response.OutputStream);
 		}
 
 		public void _api_file(HttpListenerContext context, StreamWriter writer)
@@ -239,23 +274,77 @@ namespace dome_bt
 			IEnumerable<ITorrentManagerFile> files = manager.Files.Where(f => f.Path == path);
 
 			if (files.Count() == 0)
-				throw new ApplicationException("File not found");
+			{
+				ApplicationException exception = new ApplicationException($"Not found {type}\t{path}");
+				exception.Data["status"] = 404;
+				throw exception;
+			}
 
 			ITorrentManagerFile fileInfo = files.Single();
 
 			manager.SetFilePriorityAsync(fileInfo, Priority.Highest).Wait();
 
+			string filename = Path.Combine(Globals.DirectoryDownloads, manager.Name, fileInfo.Path);
+
 			dynamic file = new JObject();
 
 			file.path = fileInfo.Path;
 			file.priority = fileInfo.Priority.ToString();
-			file.percent_complete = fileInfo.BitField.PercentComplete;
 			file.length = fileInfo.Length;
+			file.percent_complete = fileInfo.BitField.PercentComplete;
 
-			file.filename = Path.Combine(Globals.DirectoryDownloads, manager.Name, fileInfo.Path);
+			file.filename = filename;
+			file.url = $"{Globals.ListenAddress}api/download?filename={HttpUtility.UrlEncode(filename)}";
 
 			writer.WriteLine(file.ToString(Formatting.Indented));
 
 		}
+
+		private string HTML = @"
+<html>
+<head>
+<title>DOME-BT</title>
+</head>
+<body>
+
+<h1>DOME-BT</h1>
+
+<p>Welcome to DOME-BT a Bit Torrent client for obtaining MAME assets from the Pleasure Dome Torrents.</p>
+
+<p><a href=""https://github.com/sam-ludlow/dome-bt"" target=""_blank"" >https://github.com/sam-ludlow/dome-bt</a></p>
+
+<p><a href=""https://pleasuredome.github.io/pleasuredome/mame/index.html"" target=""_blank"" >https://pleasuredome.github.io/pleasuredome/mame/index.html</a></p>
+
+<p>When DOME-BT is running with MAME-AO the assets will be automatically obtained from Bit Torrents rather than using archive.org</p>
+
+<a href=""https://github.com/sam-ludlow/mame-ao"" target=""_blank"" >https://github.com/sam-ludlow/mame-ao</a>
+
+
+<h2>DOME-BT URLS</h2>
+
+<h3>Root (this page)</h3>
+<a href=""http://localhost:12381/"" target=""_blank"" >http://localhost:12381/</a>
+
+<h3>Torrents' info</h3>
+<a href=""http://localhost:12381/api/info"" target=""_blank"" >http://localhost:12381/api/info</a>
+
+<h3>Download</h3>
+<p>To begin a download, perform a GET you can then poll the same URL until the file is downloaded.</p>
+
+<h4>Machine Rom</h4>
+<a href=""http://localhost:12381/api/file?machine=@"" target=""_blank"" >http://localhost:12381/api/file?machine=@</a>
+
+<h4>Machine Disk</h4>
+<a href=""http://localhost:12381/api/file?machine=@&disk=@"" target=""_blank"" >http://localhost:12381/api/file?machine=@&disk=@</a>
+
+<h4>Software Rom</h4>
+<a href=""http://localhost:12381/api/file?list=@&software=@"" target=""_blank"" >http://localhost:12381/api/file?list=@&software=@</a>
+
+<h4>Software Disk</h4>
+<a href=""http://localhost:12381/api/file?list=@&software=@&disk=@"" target=""_blank"" >http://localhost:12381/api/file?list=@&software=@&disk=@</a>
+
+</body>
+</html>
+";
 	}
 }

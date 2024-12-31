@@ -8,7 +8,7 @@ namespace dome_bt
 		{
 			string html = Tools.FetchCached("https://pleasuredome.github.io/pleasuredome/mame/index.html") ?? throw new ApplicationException("Can't fetch HTML");
 
-			HtmlDocument doc = new HtmlDocument();
+			HtmlDocument doc = new ();
 			doc.LoadHtml(html);
 
 			foreach (HtmlNode node in doc.DocumentNode.Descendants())
@@ -30,7 +30,7 @@ namespace dome_bt
 					throw new ApplicationException("Bad text");
 
 				string version = text.Substring(7);
-				int index = version.IndexOf(" ");
+				int index = version.IndexOf(' ');
 				string name = version.Substring(index + 1);
 				version = version.Substring(0, index);
 				name = name.Replace("(merged)", "").Trim();

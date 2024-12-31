@@ -1,29 +1,41 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Net;
 
 using MonoTorrent.Client;
 using MonoTorrent;
-using MonoTorrent.Connections;
-using System.Net;
-using System.Diagnostics;
-using Newtonsoft.Json.Linq;
 
 namespace dome_bt
 {
 	public class BitTorrent
 	{
-		public ITorrentManagerFile requiredFile = null;
-
 		public ClientEngine Engine;
 
-		private CancellationTokenSource Cancellation = new CancellationTokenSource();
+		private CancellationTokenSource Cancellation = new ();
 
 		public BitTorrent()
 		{
+			//
+			// Setup Engine
+			//
+			int portNumber = 55123;
 
+			var engineSettings = new EngineSettingsBuilder
+			{
+				AllowPortForwarding = true,
+				AutoSaveLoadDhtCache = true,
+				AutoSaveLoadFastResume = true,
+				AutoSaveLoadMagnetLinkMetadata = true,
+
+				CacheDirectory = Globals.DirectoryCache,
+
+				ListenEndPoints = new Dictionary<string, IPEndPoint> {
+					{ "ipv4", new IPEndPoint (IPAddress.Any, portNumber) },
+					{ "ipv6", new IPEndPoint (IPAddress.IPv6Any, portNumber) }
+				},
+
+				DhtEndPoint = new IPEndPoint(IPAddress.Any, portNumber),
+			};
+
+			Engine = new ClientEngine(engineSettings.ToSettings());
 		}
 
 		public void Run()
@@ -59,45 +71,6 @@ namespace dome_bt
 		public async Task Worker()
 		{
 			//
-			// Setup Engine
-			//
-
-			IPAddress externalIPAddress = IPAddress.Parse("217.40.212.83");
-			int portNumber = 55123;
-
-			var engineSettings = new EngineSettingsBuilder
-			{
-				AllowPortForwarding = false,
-				AutoSaveLoadDhtCache = true,
-				AutoSaveLoadFastResume = true,
-				AutoSaveLoadMagnetLinkMetadata = true,
-
-				CacheDirectory = Globals.DirectoryCache,
-
-				ListenEndPoints = new Dictionary<string, IPEndPoint> {
-					{ "ipv4", new IPEndPoint (IPAddress.Any, portNumber) },
-					{ "ipv6", new IPEndPoint (IPAddress.IPv6Any, portNumber) }
-				},
-
-				DhtEndPoint = new IPEndPoint(IPAddress.Any, portNumber),
-
-				ReportedListenEndPoints = new Dictionary<string, IPEndPoint> {
-					{ "ipv4", new IPEndPoint( externalIPAddress, portNumber) }
-				},
-			};
-
-			Engine = new ClientEngine(engineSettings.ToSettings());
-
-			//
-			// Existing Torrents
-			//
-			Tools.ConsoleHeading(1, $"Existing Torrents count {Engine.Torrents.Count}");
-			foreach (TorrentManager manager in Engine.Torrents)
-			{
-				Console.WriteLine(manager.Torrent.Name);
-			}
-
-			//
 			// Add Magnets
 			//
 			Tools.ConsoleHeading(1, $"Add Magnets");
@@ -117,21 +90,19 @@ namespace dome_bt
 				};
 
 				magnetInfo.TorrentManager = await Engine.AddAsync(magnetLink, Globals.DirectoryDownloads, torrentSettings.ToSettings());
-
 			}
 
 			//
 			// Setup Torrents
 			//
-
 			foreach (TorrentManager manager in Engine.Torrents)
 			{
-
-				//if (manager.Name != Globals.Magnets[AssetType.MachineRom].Name)
-				//	continue;
-
-
 				Tools.ConsoleHeading(1, new string[] { $"Setup Torrent", manager.Name });
+
+				manager.PeerConnected += (o, e) =>
+				{
+					Console.WriteLine($"{manager.Name}\tPeerConnected\t{e.Peer.Uri}");
+				};
 
 				if (manager.Files.Count == 0)
 				{
@@ -149,10 +120,9 @@ namespace dome_bt
 				int count = 0;
 				foreach (var file in manager.Files)
 				{
-					//	await
-					manager.SetFilePriorityAsync(file, Priority.DoNotDownload);
+					await manager.SetFilePriorityAsync(file, Priority.DoNotDownload);
 					if (++count % 1000 == 0)
-						Console.Write(".");
+						Console.WriteLine($"{count}/{manager.Files.Count}");
 				}
 				Console.WriteLine("...done.");
 
@@ -161,11 +131,12 @@ namespace dome_bt
 				await manager.StartAsync();
 				Console.WriteLine("...done.");
 
-	
 			}
 
+			Globals.ReadyTime = DateTime.Now;
+
 			//
-			// Processing
+			// Processing				Thread.Sleep(Timeout.Infinite);
 			//
 
 
