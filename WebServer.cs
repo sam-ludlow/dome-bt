@@ -103,6 +103,9 @@ namespace dome_bt
 							if (e is TargetInvocationException && e.InnerException != null)
 								e = e.InnerException;
 
+							Tools.ConsoleHeading(2, ["Web Request Error", context.Request.Url.PathAndQuery, e.Message]);
+							Console.WriteLine(e.ToString());
+
 							ErrorResponse(context, writer, e);
 						}
 					}
@@ -212,7 +215,7 @@ namespace dome_bt
 			context.Response.Headers["Content-Type"] = "application/octet-stream";
 			context.Response.Headers["Content-Disposition"] = $"attachment; filename=\"{Path.GetFileName(filename)}\"";
 
-			using (FileStream fileStream = new FileStream(filename, FileMode.Open))
+			using (FileStream fileStream = new FileStream(filename, FileMode.Open, FileAccess.Read))
 				fileStream.CopyTo(context.Response.OutputStream);
 		}
 
