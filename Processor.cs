@@ -70,9 +70,30 @@ namespace dome_bt
 
 	public class Processor
 	{
+		private readonly string WelcomeText = @"@VERSION
+'########:::'#######::'##::::'##:'########::::::::::'########::'########:
+ ##.... ##:'##.... ##: ###::'###: ##.....::::::::::: ##.... ##:... ##..::
+ ##:::: ##: ##:::: ##: ####'####: ##:::::::::::::::: ##:::: ##:::: ##::::
+ ##:::: ##: ##:::: ##: ## ### ##: ######:::'#######: ########::::: ##::::
+ ##:::: ##: ##:::: ##: ##. #: ##: ##...::::........: ##.... ##:::: ##::::
+ ##:::: ##: ##:::: ##: ##:.:: ##: ##:::::::::::::::: ##:::: ##:::: ##::::
+ ########::. #######:: ##:::: ##: ########:::::::::: ########::::: ##::::
+........::::.......:::..:::::..::........:::::::::::........::::::..:::::
+
+              See the README for more information
+             https://github.com/sam-ludlow/dome-bt
+
+            More information can be found at MAME-AO
+https://github.com/sam-ludlow/mame-ao?tab=readme-ov-file#bittorrent
+
+";
 
 		public void Run()
 		{
+			Console.Title = $"DOME-BT {Globals.AssemblyVersion}";
+
+			Console.Write(WelcomeText.Replace("@VERSION", Globals.AssemblyVersion));
+
 			PleasureDome.ParseMagentLinks();
 
 			WebServer webServer = new ();

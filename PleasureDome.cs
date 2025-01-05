@@ -6,7 +6,11 @@ namespace dome_bt
 	{
 		public static void ParseMagentLinks()
 		{
-			string html = Tools.FetchCached("https://pleasuredome.github.io/pleasuredome/mame/index.html") ?? throw new ApplicationException("Can't fetch HTML");
+			string url = "https://pleasuredome.github.io/pleasuredome/mame/index.html";
+
+			Tools.ConsoleHeading(1, ["Pleasure Dome", url ]);
+
+			string html = Tools.FetchCached(url) ?? throw new ApplicationException("Can't fetch HTML");
 
 			HtmlDocument doc = new ();
 			doc.LoadHtml(html);
@@ -63,8 +67,6 @@ namespace dome_bt
 					throw new ApplicationException($"Duplicate magnet types {assetType}");
 
 				Globals.Magnets.Add(assetType, new MagnetInfo(node.InnerText, version, href));
-
-				Console.WriteLine($"Magnet Link Parsed:\t{assetType}\t{version}\t{name}\t{node.InnerText}\t{href}");
 			}
 
 			if (Globals.Magnets.Count != 4)
