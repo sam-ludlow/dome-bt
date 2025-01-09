@@ -42,6 +42,11 @@ namespace dome_bt
 		{
 			var task = Worker();
 
+			//Console.CancelKeyPress += Console_CancelKeyPress;
+			//AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
+			//AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+
+
 			Console.CancelKeyPress += delegate { Cancellation.Cancel(); task.Wait(); };
 			AppDomain.CurrentDomain.ProcessExit += delegate { Cancellation.Cancel(); task.Wait(); };
 
@@ -68,17 +73,38 @@ namespace dome_bt
 			}
 		}
 
+		//private void BitTorrent_UnhandledException(object sender, UnhandledExceptionEventArgs e)
+		//{
+		//	throw new NotImplementedException();
+		//}
+
+		//private void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
+		//{
+		//	throw new NotImplementedException();
+		//}
+
+		//private void CurrentDomain_ProcessExit(object? sender, EventArgs e)
+		//{
+		//	throw new NotImplementedException();
+		//}
+
+		//private void Console_CancelKeyPress(object? sender, ConsoleCancelEventArgs e)
+		//{
+		//	throw new NotImplementedException();
+		//}
+
 		public async Task Worker()
 		{
+			int pad = 0;
+
 			//
 			// Add Magnets
 			//
 			Tools.ConsoleHeading(1, $"Add Magnets");
+
 			foreach (AssetType assetType in Globals.Magnets.Keys)
 			{
 				MagnetInfo magnetInfo = Globals.Magnets[assetType];
-
-				Console.WriteLine(magnetInfo.Name);
 
 				MagnetLink? magnetLink;
 				if (MagnetLink.TryParse(magnetInfo.Magnet, out magnetLink) == false)
@@ -90,61 +116,88 @@ namespace dome_bt
 				};
 
 				magnetInfo.TorrentManager = await Engine.AddAsync(magnetLink, Globals.DirectoryDownloads, torrentSettings.ToSettings());
+
+				Console.WriteLine($"{assetType}	{magnetInfo.Version}	{magnetInfo.Name}");
+
+				pad = Math.Max(pad, magnetInfo.Name.Length);
 			}
 
 			//
 			// Setup Torrents
 			//
+			Tools.ConsoleHeading(1, $"Start Torrents");
+
+			List<Task> managerTasks = new List<Task>();
+
 			foreach (TorrentManager manager in Engine.Torrents)
 			{
-				Tools.ConsoleHeading(1, new string[] { $"Setup Torrent", manager.Name });
+				string name = manager.Name.PadRight(pad);
 
-				manager.PeerConnected += (o, e) =>
+				managerTasks.Add(Task.Run(async () =>
 				{
-					Console.WriteLine($"{manager.Name}\tPeerConnected\t{e.Peer.Uri}");
-				};
+					Console.WriteLine($"{name}	START	{manager.Files.Count}");
 
-				if (manager.Files.Count == 0)
-				{
-					Console.Write("First time get files...");
+					if (manager.Files.Count == 0)
+					{
+						await manager.StartAsync();
+						await manager.WaitForMetadataAsync(Cancellation.Token);
+						await manager.StopAsync();
+					}
+					else
+					{
+						Console.WriteLine($"{name}	Starting Priority	{manager.Files[0].Priority}");
+					}
+
+					int count = 0;
+					foreach (var file in manager.Files)
+					{
+						await manager.SetFilePriorityAsync(file, Priority.DoNotDownload);
+
+						if (++count % 1000 == 0)
+							Console.WriteLine($"{name}	{count}/{manager.Files.Count}");
+					}
+
 					await manager.StartAsync();
-					Console.WriteLine("...done. A");
-					await manager.WaitForMetadataAsync(Cancellation.Token);
-					Console.WriteLine("...done. B");
-					await manager.StopAsync();
-					Console.WriteLine("...done.");
-				}
 
-				Console.Write($"Setting Priorities {manager.Files.Count} ...");
-
-				int count = 0;
-				foreach (var file in manager.Files)
-				{
-					await manager.SetFilePriorityAsync(file, Priority.DoNotDownload);
-					if (++count % 1000 == 0)
-						Console.WriteLine($"{count}/{manager.Files.Count}");
-				}
-				Console.WriteLine("...done.");
-
-
-				Console.Write("Starting...");
-				await manager.StartAsync();
-				Console.WriteLine("...done.");
-
+					Console.WriteLine($"{name}	READY	{manager.Files.Count}");
+				}));
 			}
+
+			await Task.WhenAll(managerTasks);
 
 			Globals.ReadyTime = DateTime.Now;
 
 			//
-			// Processing				Thread.Sleep(Timeout.Infinite);
+			// Processing
 			//
-
+			Tools.ConsoleHeading(1, $"All Torrents Ready");
 
 			while (Engine.IsRunning)
 			{
-				await Task.Delay(5000, Cancellation.Token);
+				Console.Clear();
 
-				Console.WriteLine("IsRunning");
+				long dataBytesReceived = 0;
+				long dataBytesSent = 0;
+				foreach (TorrentManager manager in Engine.Torrents)
+				{
+					dataBytesReceived += manager.Monitor.DataBytesReceived;
+					dataBytesSent += manager.Monitor.DataBytesSent;
+				}
+
+				Tools.ConsoleHeading(1, new string[] {
+					$"DOME-BT {Globals.AssemblyVersion}    start:{Globals.StartTime}    now:{DateTime.Now}    run:{Tools.TimeTookText(DateTime.Now - Globals.StartTime)}",
+					$"",
+					$"connections:{Engine.ConnectionManager.OpenConnections}    download rate:{Engine.TotalDownloadRate}    upload rate:{Engine.TotalUploadRate}    received:{dataBytesReceived}    sent:{dataBytesSent}",
+				});
+
+				foreach (TorrentManager manager in Engine.Torrents)
+				{
+					string name = manager.Name.PadRight(pad);
+
+					Console.WriteLine($"{name}	{manager.State}	{manager.Monitor.DataBytesReceived}	{manager.Monitor.DataBytesSent}");
+				}
+
+				await Task.Delay(5000, Cancellation.Token);
 			}
 
 

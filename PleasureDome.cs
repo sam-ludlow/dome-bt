@@ -8,7 +8,7 @@ namespace dome_bt
 		{
 			string url = "https://pleasuredome.github.io/pleasuredome/mame/index.html";
 
-			Tools.ConsoleHeading(1, ["Pleasure Dome", url ]);
+			Tools.ConsoleHeading(1, ["Pleasuredome", url ]);
 
 			string html = Tools.FetchCached(url) ?? throw new ApplicationException("Can't fetch HTML");
 

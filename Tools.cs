@@ -122,5 +122,108 @@ namespace dome_bt
 			return sb.ToString();
 		}
 
+		private static string[] _SystemOfUnits =
+		{
+			"Bytes",
+			"Kilobytes (KB)",
+			"Megabytes (MB)",
+			"Gigabytes (GB)",
+			"Terabytes (TB)",
+			"Petabytes (PB)",
+			"Exabytes (EB)"
+		};
+		public static string DataSizeText(ulong sizeBytes)
+		{
+			for (int index = 0; index < _SystemOfUnits.Length; ++index)
+			{
+				ulong nextUnit = (ulong)Math.Pow(2, (index + 1) * 10);
+
+				if (sizeBytes < nextUnit || nextUnit == 0 || index == (_SystemOfUnits.Length - 1))
+				{
+					ulong unit = (ulong)Math.Pow(2, index * 10);
+					decimal result = (decimal)sizeBytes / (decimal)unit;
+					int decimalPlaces = 0;
+					if (result <= 9.9M)
+						decimalPlaces = 1;
+					result = Math.Round(result, decimalPlaces);
+					return result.ToString() + " " + _SystemOfUnits[index];
+				}
+			}
+
+			throw new ApplicationException($"Failed to find Data Size {sizeBytes}");
+		}
+
+		public static string TimeTookText(TimeSpan span)
+		{
+			StringBuilder text = new StringBuilder();
+
+			if (((int)span.TotalDays) > 0)
+			{
+				text.Append((int)span.TotalDays);
+				text.Append("d");
+				if (span.Hours > 0)
+				{
+					text.Append(" ");
+					text.Append(span.Hours);
+					text.Append("h");
+				}
+				if (span.Minutes > 0)
+				{
+					text.Append(" ");
+					text.Append(span.Minutes);
+					text.Append("m");
+				}
+
+				return text.ToString();
+			}
+
+			if (((int)span.TotalHours) > 0)
+			{
+				text.Append(span.Hours);
+				text.Append("h");
+				if (span.Minutes > 0)
+				{
+					text.Append(" ");
+					text.Append(span.Minutes);
+					text.Append("m");
+				}
+
+				return text.ToString();
+			}
+
+			if (((int)span.TotalMinutes) > 0)
+			{
+				text.Append(span.Minutes);
+				text.Append("m");
+				if (span.Seconds > 0)
+				{
+					text.Append(" ");
+					text.Append(span.Seconds);
+					text.Append("s");
+				}
+
+				return text.ToString();
+			}
+
+			if (((int)span.TotalSeconds) > 0)
+			{
+				text.Append(span.Seconds);
+				text.Append("s");
+				if (span.Milliseconds > 0)
+				{
+					text.Append(" ");
+					text.Append(span.Milliseconds);
+					text.Append("ms");
+				}
+
+				return text.ToString();
+			}
+
+			text.Append(span.Milliseconds);
+			text.Append("ms");
+
+			return text.ToString();
+		}
+
 	}
 }

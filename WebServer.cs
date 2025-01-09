@@ -147,6 +147,9 @@ namespace dome_bt
 			json.half_open_connections = Globals.BitTorrent.Engine.ConnectionManager.HalfOpenConnections;
 			json.open_connections = Globals.BitTorrent.Engine.ConnectionManager.OpenConnections;
 
+			json.total_download_rate = Globals.BitTorrent.Engine.TotalDownloadRate;
+			json.total_upload_rate = Globals.BitTorrent.Engine.TotalUploadRate;
+
 			json.start_time = Globals.StartTime;
 
 			if (Globals.ReadyTime != Globals.StartTime)
@@ -175,6 +178,7 @@ namespace dome_bt
 				result.name = torrentManager.Name;
 				result.file_count = torrentManager.Files.Count;
 				result.state = torrentManager.State.ToString();
+				result.has_metadata = torrentManager.HasMetadata;
 
 				if (torrentManager.Error != null)
 					result.error = torrentManager.Error.Exception.ToString();
@@ -312,7 +316,7 @@ namespace dome_bt
 
 <h1>DOME-BT</h1>
 
-<p>Welcome to DOME-BT a Bit Torrent client for obtaining MAME assets from the Pleasure Dome Torrents.</p>
+<p>Welcome to DOME-BT a Bit Torrent client for obtaining MAME assets from the Pleasuredome Torrents.</p>
 
 <p><a href=""https://github.com/sam-ludlow/dome-bt"" target=""_blank"" >https://github.com/sam-ludlow/dome-bt</a></p>
 
