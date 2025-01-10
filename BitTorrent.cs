@@ -179,6 +179,8 @@ namespace dome_bt
 
 			while (Engine.IsRunning)
 			{
+				await Task.Delay(5000, Cancellation.Token);
+
 				Console.Clear();
 
 				long dataBytesReceived = 0;
@@ -201,8 +203,6 @@ namespace dome_bt
 
 					Console.WriteLine($"{name}	{manager.State}	{manager.Monitor.DataBytesReceived}	{manager.Monitor.DataBytesSent}");
 				}
-
-				await Task.Delay(5000, Cancellation.Token);
 			}
 
 
