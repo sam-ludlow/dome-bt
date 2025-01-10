@@ -1,7 +1,11 @@
-﻿using System.Net;
+﻿using System;
+using System.IO;
+using System.Net;
 using System.Reflection;
 using System.Text;
-using System.Web;
+using System.Threading.Tasks;
+using System.Linq;
+using System.Collections.Generic;
 
 using MonoTorrent;
 using MonoTorrent.Client;
@@ -68,7 +72,7 @@ namespace dome_bt
 							{
 								if (path.StartsWith("/api/") == true)
 								{
-									MethodInfo? method = GetType().GetMethod(path.Replace("/", "_"));
+									MethodInfo method = GetType().GetMethod(path.Replace("/", "_"));
 
 									if (method == null)
 									{
@@ -103,7 +107,7 @@ namespace dome_bt
 							if (e is TargetInvocationException && e.InnerException != null)
 								e = e.InnerException;
 
-							Tools.ConsoleHeading(2, ["Web Request Error", context.Request.Url.PathAndQuery, e.Message]);
+							Tools.ConsoleHeading(2, new string[] { "Web Request Error", context.Request.Url.PathAndQuery, e.Message });
 							Console.WriteLine(e.ToString());
 
 							ErrorResponse(context, writer, e);
@@ -234,7 +238,7 @@ namespace dome_bt
 
 			foreach (string valid in new string[] { "machine", "list", "disk", "software" })
 			{
-				string? qs = context.Request.QueryString[valid];
+				string qs = context.Request.QueryString[valid];
 				if (qs != null)
 					parameters.Add(valid, qs);
 			}
@@ -301,7 +305,7 @@ namespace dome_bt
 			file.percent_complete = fileInfo.BitField.PercentComplete;
 
 			file.filename = filename;
-			file.url = $"{Globals.ListenAddress}api/download?filename={HttpUtility.UrlEncode(filename)}";
+			file.url = $"{Globals.ListenAddress}api/download?filename={Uri.EscapeDataString(filename)}";
 
 			writer.WriteLine(file.ToString(Formatting.Indented));
 

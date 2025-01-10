@@ -1,4 +1,8 @@
-﻿using System.Net;
+﻿using System;
+using System.Net;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Collections.Generic;
 
 using MonoTorrent.Client;
 using MonoTorrent;
@@ -9,7 +13,7 @@ namespace dome_bt
 	{
 		public ClientEngine Engine;
 
-		private CancellationTokenSource Cancellation = new ();
+		private CancellationTokenSource Cancellation = new CancellationTokenSource();
 
 		public BitTorrent()
 		{
@@ -106,7 +110,7 @@ namespace dome_bt
 			{
 				MagnetInfo magnetInfo = Globals.Magnets[assetType];
 
-				MagnetLink? magnetLink;
+				MagnetLink magnetLink;
 				if (MagnetLink.TryParse(magnetInfo.Magnet, out magnetLink) == false)
 					throw new ApplicationException($"Bad magnet link: {magnetInfo.Magnet}");
 
@@ -143,18 +147,19 @@ namespace dome_bt
 						await manager.WaitForMetadataAsync(Cancellation.Token);
 						await manager.StopAsync();
 					}
-					else
-					{
-						Console.WriteLine($"{name}	Starting Priority	{manager.Files[0].Priority}");
-					}
 
-					int count = 0;
-					foreach (var file in manager.Files)
-					{
-						await manager.SetFilePriorityAsync(file, Priority.DoNotDownload);
+					Console.WriteLine($"{name}	Starting Priority	{manager.Files[0].Priority}");
 
-						if (++count % 1000 == 0)
-							Console.WriteLine($"{name}	{count}/{manager.Files.Count}");
+					if (manager.Files[0].Priority == Priority.Normal)
+					{
+						int count = 0;
+						foreach (var file in manager.Files)
+						{
+							await manager.SetFilePriorityAsync(file, Priority.DoNotDownload);
+
+							if (++count % 1000 == 0)
+								Console.WriteLine($"{name}	{count}/{manager.Files.Count}");
+						}
 					}
 
 					await manager.StartAsync();

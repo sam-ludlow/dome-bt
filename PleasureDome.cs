@@ -1,4 +1,6 @@
-﻿using HtmlAgilityPack;
+﻿using System;
+
+using HtmlAgilityPack;
 
 namespace dome_bt
 {
@@ -8,11 +10,11 @@ namespace dome_bt
 		{
 			string url = "https://pleasuredome.github.io/pleasuredome/mame/index.html";
 
-			Tools.ConsoleHeading(1, ["Pleasuredome", url ]);
+			Tools.ConsoleHeading(1, new string[] { "Pleasuredome", url });
 
 			string html = Tools.FetchCached(url) ?? throw new ApplicationException("Can't fetch HTML");
 
-			HtmlDocument doc = new ();
+			HtmlDocument doc = new HtmlDocument();
 			doc.LoadHtml(html);
 
 			foreach (HtmlNode node in doc.DocumentNode.Descendants())
@@ -20,7 +22,7 @@ namespace dome_bt
 				if (node.Name != "a")
 					continue;
 
-				string? href = node.Attributes["href"].DeEntitizeValue;
+				string href = node.Attributes["href"].DeEntitizeValue;
 
 				if (href.StartsWith("magnet:") == false)
 					continue;

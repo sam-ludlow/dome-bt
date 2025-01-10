@@ -1,4 +1,18 @@
-﻿using dome_bt;
+﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
-Processor processor = new Processor();
-processor.Run();
+namespace dome_bt
+{
+	internal class Program
+	{
+		static void Main(string[] args)
+		{
+			Processor processor = new Processor();
+			processor.Run();
+		}
+	}
+}

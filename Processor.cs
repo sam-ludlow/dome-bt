@@ -1,5 +1,9 @@
-﻿using System.Reflection;
+﻿using System;
+using System.IO;
+using System.Net.Http;
+using System.Reflection;
 using System.Diagnostics;
+using System.Collections.Generic;
 
 using MonoTorrent.Client;
 
@@ -65,7 +69,7 @@ namespace dome_bt
 		public string Version;
 		public string Magnet;
 
-		public TorrentManager? TorrentManager;
+		public TorrentManager TorrentManager;
 	}
 
 	public class Processor
@@ -96,12 +100,12 @@ https://github.com/sam-ludlow/mame-ao?tab=readme-ov-file#bittorrent
 
 			PleasureDome.ParseMagentLinks();
 
-			WebServer webServer = new ();
+			WebServer webServer = new WebServer();
 			webServer.StartListener();
 
 			Process.Start(new ProcessStartInfo(Globals.ListenAddress) { UseShellExecute = true });
 
-			Globals.BitTorrent = new ();
+			Globals.BitTorrent = new BitTorrent();
 			Globals.BitTorrent.Run();
 
 		}

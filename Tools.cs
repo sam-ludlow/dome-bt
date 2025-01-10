@@ -1,4 +1,9 @@
-﻿using System.Text;
+﻿using System;
+using System.IO;
+using System.Text;
+using System.Threading.Tasks;
+using System.Net.Http;
+using System.Collections.Generic;
 
 namespace dome_bt
 {
@@ -40,11 +45,11 @@ namespace dome_bt
 			ConsoleRule(head);
 		}
 
-		public static string? FetchCached(string url)
+		public static string FetchCached(string url)
 		{
 			string filename = Path.Combine(Globals.DirectoryCache, Tools.ValidFileName(url.Substring(8)));
 
-			string? result = null;
+			string result = null;
 
 			if (File.Exists(filename) == false || (DateTime.Now - File.GetLastWriteTime(filename) > TimeSpan.FromHours(3)))
 			{
@@ -81,7 +86,7 @@ namespace dome_bt
 		{
 			try
 			{
-				using (HttpRequestMessage requestMessage = new(HttpMethod.Get, url))
+				using (HttpRequestMessage requestMessage = new HttpRequestMessage(HttpMethod.Get, url))
 				{
 					Task<HttpResponseMessage> requestTask = Globals.HttpClient.SendAsync(requestMessage);
 					requestTask.Wait();
