@@ -28,6 +28,8 @@ namespace dome_bt
 		public static DateTime StartTime = DateTime.Now;
 		public static DateTime ReadyTime = StartTime;
 
+		public static int Pid = Process.GetCurrentProcess().Id;
+
 		static Globals()
 		{
 			Version assemblyVersion = Assembly.GetExecutingAssembly().GetName().Version ?? throw new ApplicationException("Can't find Assembly Version");
@@ -103,7 +105,7 @@ https://github.com/sam-ludlow/mame-ao?tab=readme-ov-file#bittorrent
 			WebServer webServer = new WebServer();
 			webServer.StartListener();
 
-			Process.Start(new ProcessStartInfo(Globals.ListenAddress) { UseShellExecute = true });
+			//	Process.Start(new ProcessStartInfo(Globals.ListenAddress) { UseShellExecute = true });
 
 			Globals.BitTorrent = new BitTorrent();
 			Globals.BitTorrent.Run();

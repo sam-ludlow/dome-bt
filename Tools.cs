@@ -137,6 +137,10 @@ namespace dome_bt
 			"Petabytes (PB)",
 			"Exabytes (EB)"
 		};
+		public static string DataSizeText(long sizeBytes)
+		{
+			return DataSizeText((ulong)sizeBytes);
+		}
 		public static string DataSizeText(ulong sizeBytes)
 		{
 			for (int index = 0; index < _SystemOfUnits.Length; ++index)

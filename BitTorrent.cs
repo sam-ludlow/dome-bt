@@ -51,6 +51,8 @@ namespace dome_bt
 			//AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
 
 
+			// !! dont work on 4.8
+
 			Console.CancelKeyPress += delegate { Cancellation.Cancel(); task.Wait(); };
 			AppDomain.CurrentDomain.ProcessExit += delegate { Cancellation.Cancel(); task.Wait(); };
 
@@ -193,15 +195,16 @@ namespace dome_bt
 
 				Tools.ConsoleHeading(1, new string[] {
 					$"DOME-BT {Globals.AssemblyVersion}    start:{Globals.StartTime}    now:{DateTime.Now}    run:{Tools.TimeTookText(DateTime.Now - Globals.StartTime)}",
-					$"",
-					$"connections:{Engine.ConnectionManager.OpenConnections}    download rate:{Engine.TotalDownloadRate}    upload rate:{Engine.TotalUploadRate}    received:{dataBytesReceived}    sent:{dataBytesSent}",
+					"",
+					$"connections:{Engine.ConnectionManager.OpenConnections}    download:{Tools.DataSizeText(Engine.TotalDownloadRate)}/s    upload:{Tools.DataSizeText(Engine.TotalUploadRate)}/s",
+					"",
+					$"received:{Tools.DataSizeText(dataBytesReceived)}    sent:{Tools.DataSizeText(dataBytesSent)}",
 				});
 
 				foreach (TorrentManager manager in Engine.Torrents)
 				{
-					string name = manager.Name.PadRight(pad);
-
-					Console.WriteLine($"{name}	{manager.State}	{manager.Monitor.DataBytesReceived}	{manager.Monitor.DataBytesSent}");
+					Console.WriteLine($"{manager.Name.PadRight(pad)}	{manager.State.ToString().PadRight(12)}	" +
+						$"{Tools.DataSizeText(manager.Monitor.DataBytesReceived).PadLeft(24)}	{Tools.DataSizeText(manager.Monitor.DataBytesSent).PadLeft(24)}");
 				}
 			}
 

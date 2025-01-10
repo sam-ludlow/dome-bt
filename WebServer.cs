@@ -147,6 +147,7 @@ namespace dome_bt
 			dynamic json = new JObject();
 
 			json.version = Globals.AssemblyVersion;
+			json.pid = Globals.Pid;
 
 			json.half_open_connections = Globals.BitTorrent.Engine.ConnectionManager.HalfOpenConnections;
 			json.open_connections = Globals.BitTorrent.Engine.ConnectionManager.OpenConnections;
