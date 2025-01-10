@@ -16,4 +16,7 @@ Ensure you start `DOME-BT` before `MAME-AO`.
 You have to give `DOME-BT` a moment for it to fully start up. You will have machine ROMs & DISKs available almost immediately, for other asset types (like Software ROM) give it time.
 
 ## System requirements
-- .NET Runtime 9.0 - https://dotnet.microsoft.com/en-us/download/dotnet/9.0 - https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/runtime-9.0.0-windows-x64-installer
+- Windows with .net framework 4.8
+- 32 bit / 64 bit
+- 0.5 Gb RAM free
+- 2 Gb DISK free (absolute minimum)
