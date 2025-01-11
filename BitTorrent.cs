@@ -15,6 +15,8 @@ namespace dome_bt
 
 		private CancellationTokenSource Cancellation = new CancellationTokenSource();
 
+		private int MaximumConnectionsPerTorrent = 50;
+
 		public BitTorrent()
 		{
 			//
@@ -37,6 +39,8 @@ namespace dome_bt
 				},
 
 				DhtEndPoint = new IPEndPoint(IPAddress.Any, portNumber),
+
+				MaximumConnections = 4 * MaximumConnectionsPerTorrent,
 			};
 
 			Engine = new ClientEngine(engineSettings.ToSettings());
@@ -118,7 +122,7 @@ namespace dome_bt
 
 				var torrentSettings = new TorrentSettingsBuilder
 				{
-					MaximumConnections = 60,
+					MaximumConnections = MaximumConnectionsPerTorrent,
 				};
 
 				magnetInfo.TorrentManager = await Engine.AddAsync(magnetLink, Globals.DirectoryDownloads, torrentSettings.ToSettings());
