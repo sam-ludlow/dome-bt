@@ -217,6 +217,7 @@ namespace dome_bt
 			writer.WriteLine(json.ToString(Formatting.Indented));
 		}
 
+		// depreciated
 		public void _api_download(HttpListenerContext context, StreamWriter writer)
 		{
 			string filename = context.Request.QueryString["filename"] ?? throw new ApplicationException("filename not passed");
@@ -296,17 +297,16 @@ namespace dome_bt
 
 			manager.SetFilePriorityAsync(fileInfo, Priority.Highest).Wait();
 
-			string filename = Path.Combine(Globals.DirectoryDownloads, manager.Name, fileInfo.Path);
-
 			dynamic file = new JObject();
 
 			file.path = fileInfo.Path;
-			file.priority = fileInfo.Priority.ToString();
-			file.length = fileInfo.Length;
 			file.percent_complete = fileInfo.BitField.PercentComplete;
+			file.length = fileInfo.Length;
+			file.priority = fileInfo.Priority.ToString();
+			file.filename = fileInfo.FullPath;
 
-			file.filename = filename;
-			file.url = $"{Globals.ListenAddress}api/download?filename={Uri.EscapeDataString(filename)}";
+			// depreciated
+			file.url = $"{Globals.ListenAddress}api/download?filename={Uri.EscapeDataString(fileInfo.FullPath)}";
 
 			writer.WriteLine(file.ToString(Formatting.Indented));
 

@@ -43,6 +43,10 @@ namespace dome_bt
 				MaximumConnections = 4 * MaximumConnectionsPerTorrent,
 			};
 
+			//	TODO: Impliment rate limiting
+			//engineSettings.MaximumDownloadRate;
+			//engineSettings.MaximumUploadRate;
+
 			Engine = new ClientEngine(engineSettings.ToSettings());
 		}
 
@@ -50,18 +54,8 @@ namespace dome_bt
 		{
 			var task = Worker();
 
-			//Console.CancelKeyPress += Console_CancelKeyPress;
-			//AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
-			//AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+			//	TODO: Handle clean shutdown
 
-
-			// !! dont work on 4.8
-
-			Console.CancelKeyPress += delegate { Cancellation.Cancel(); task.Wait(); };
-			AppDomain.CurrentDomain.ProcessExit += delegate { Cancellation.Cancel(); task.Wait(); };
-
-			AppDomain.CurrentDomain.UnhandledException += delegate (object sender, UnhandledExceptionEventArgs e) { Console.WriteLine(e.ExceptionObject); Cancellation.Cancel(); task.Wait(); };
-			Thread.GetDomain().UnhandledException += delegate (object sender, UnhandledExceptionEventArgs e) { Console.WriteLine(e.ExceptionObject); Cancellation.Cancel(); task.Wait(); };
 
 			try
 			{
@@ -82,26 +76,6 @@ namespace dome_bt
 				stoppingTask.Wait();
 			}
 		}
-
-		//private void BitTorrent_UnhandledException(object sender, UnhandledExceptionEventArgs e)
-		//{
-		//	throw new NotImplementedException();
-		//}
-
-		//private void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
-		//{
-		//	throw new NotImplementedException();
-		//}
-
-		//private void CurrentDomain_ProcessExit(object? sender, EventArgs e)
-		//{
-		//	throw new NotImplementedException();
-		//}
-
-		//private void Console_CancelKeyPress(object? sender, ConsoleCancelEventArgs e)
-		//{
-		//	throw new NotImplementedException();
-		//}
 
 		public async Task Worker()
 		{
@@ -207,8 +181,8 @@ namespace dome_bt
 
 				foreach (TorrentManager manager in Engine.Torrents)
 				{
-					Console.WriteLine($"{manager.Name.PadRight(pad)}	{manager.State.ToString().PadRight(12)}	" +
-						$"{Tools.DataSizeText(manager.Monitor.DataBytesReceived).PadLeft(24)}	{Tools.DataSizeText(manager.Monitor.DataBytesSent).PadLeft(24)}");
+					Console.WriteLine($"{manager.Name.PadRight(pad)}   {manager.State.ToString().PadRight(12)}   {manager.OpenConnections.ToString().PadLeft(3)}   " +
+						$"{Tools.DataSizeText(manager.Monitor.DataBytesReceived).PadLeft(24)}   {Tools.DataSizeText(manager.Monitor.DataBytesSent).PadLeft(24)}");
 				}
 			}
 
