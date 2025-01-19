@@ -9,6 +9,7 @@ using System.Collections.Generic;
 
 using MonoTorrent;
 using MonoTorrent.Client;
+using MonoTorrent.PortForwarding;
 
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -144,21 +145,34 @@ namespace dome_bt
 		{
 			//	http://localhost:12381/api/info
 
+			ClientEngine engine = Globals.BitTorrent.Engine;
+
 			dynamic json = new JObject();
 
 			json.version = Globals.AssemblyVersion;
 			json.pid = Globals.Pid;
+			json.is_running = engine.IsRunning;
 
-			json.half_open_connections = Globals.BitTorrent.Engine.ConnectionManager.HalfOpenConnections;
-			json.open_connections = Globals.BitTorrent.Engine.ConnectionManager.OpenConnections;
+			json.half_open_connections = engine.ConnectionManager.HalfOpenConnections;
+			json.open_connections = engine.ConnectionManager.OpenConnections;
 
-			json.total_download_rate = Globals.BitTorrent.Engine.TotalDownloadRate;
-			json.total_upload_rate = Globals.BitTorrent.Engine.TotalUploadRate;
+			json.total_download_rate = engine.TotalDownloadRate;
+			json.total_upload_rate = engine.TotalUploadRate;
 
 			json.start_time = Globals.StartTime;
 
 			if (Globals.ReadyTime != Globals.StartTime)
 				json.ready_minutes = (Globals.ReadyTime - Globals.StartTime).TotalMinutes;
+
+			json.dht_state = engine.Dht.State.ToString();
+
+			json.open_files = engine.DiskManager.OpenFiles;
+			
+			json.cache_directory = engine.Settings.CacheDirectory;
+
+			//
+			// Magnets
+			//
 
 			dynamic magnets = new JArray();
 			foreach (AssetType magnetType in Globals.Magnets.Keys)
@@ -175,8 +189,63 @@ namespace dome_bt
 			}
 			json.magnets = magnets;
 
+			//
+			// Peer Listeners
+			//
+			JArray peerListeners = new JArray();
+			foreach (var listener in engine.PeerListeners)
+			{
+				dynamic listen = new JObject();
+				if (listener.LocalEndPoint != null)
+				{
+					listen.local_address = listener.LocalEndPoint.Address.ToString();
+					listen.local_port = listener.LocalEndPoint.Port;
+				}
+				if (listener.PreferredLocalEndPoint != null)
+				{
+					listen.preferred_local_address = listener.PreferredLocalEndPoint.Address.ToString();
+					listen.preferred_local_port = listener.PreferredLocalEndPoint.Port;
+				}
+				listen.status = listener.Status.ToString();
+				peerListeners.Add(listen);
+			}
+			json.peer_listeners = peerListeners;
+
+			//
+			// Port Mappings
+			//
+			string[] portMappingsNames = new string[] { "Created", "Pending", "Failed" };
+			IReadOnlyList<Mapping>[] mappingsList = new IReadOnlyList<Mapping>[] { engine.PortMappings.Created, engine.PortMappings.Pending, engine.PortMappings.Failed };
+
+			JArray portMappings = new JArray();
+			for (int index = 0; index < mappingsList.Length; index++)
+			{
+				string portMappingsName = portMappingsNames[index];
+				IReadOnlyList<Mapping> mappings = mappingsList[index];
+
+				JArray mapsArray = new JArray();
+
+				foreach (Mapping mapping in mappings)
+				{
+					dynamic map = new JObject();
+					map.public_port = mapping.PublicPort;
+					map.public_port = mapping.PublicPort;
+					map.protocol = mapping.Protocol.ToString();
+					mapsArray.Add(map);
+				}
+
+				dynamic maps = new JObject();
+				maps.name = portMappingsName;
+				maps.mappings = mapsArray;
+				portMappings.Add(maps);
+			}
+			json.port_mappings = portMappings;
+
+			//
+			// Torrents
+			//
 			dynamic torrents = new JArray();
-			foreach (var torrentManager in Globals.BitTorrent.Engine.Torrents)
+			foreach (var torrentManager in engine.Torrents)
 			{
 				dynamic result = new JObject();
 
@@ -209,6 +278,8 @@ namespace dome_bt
 
 				}
 				result.files = files;
+
+
 
 				torrents.Add(result);
 			}
@@ -295,7 +366,8 @@ namespace dome_bt
 
 			ITorrentManagerFile fileInfo = files.Single();
 
-			manager.SetFilePriorityAsync(fileInfo, Priority.Highest).Wait();
+			if (fileInfo.Priority != Priority.Highest)
+				manager.SetFilePriorityAsync(fileInfo, Priority.Highest).Wait();
 
 			dynamic file = new JObject();
 
