@@ -369,6 +369,9 @@ namespace dome_bt
 			if (fileInfo.Priority != Priority.Highest)
 				manager.SetFilePriorityAsync(fileInfo, Priority.Highest).Wait();
 
+			if (fileInfo.BitField.PercentComplete == 100.0D)
+				Globals.BitTorrent.Engine.DiskManager.FlushAsync(manager).Wait();
+
 			dynamic file = new JObject();
 
 			file.path = fileInfo.Path;
@@ -376,6 +379,8 @@ namespace dome_bt
 			file.length = fileInfo.Length;
 			file.priority = fileInfo.Priority.ToString();
 			file.filename = fileInfo.FullPath;
+			file.piece_start_index = fileInfo.StartPieceIndex;
+			file.piece_count = fileInfo.PieceCount;
 
 			// depreciated
 			file.url = $"{Globals.ListenAddress}api/download?filename={Uri.EscapeDataString(fileInfo.FullPath)}";
