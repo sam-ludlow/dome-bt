@@ -159,10 +159,30 @@ namespace dome_bt
 			json.total_download_rate = engine.TotalDownloadRate;
 			json.total_upload_rate = engine.TotalUploadRate;
 
+			json.total_download_rate_text = Tools.DataSizeText(engine.TotalDownloadRate);
+			json.total_upload_rate_text = Tools.DataSizeText(engine.TotalUploadRate);
+
+			long dataBytesReceived = 0;
+			long dataBytesSent = 0;
+			foreach (TorrentManager manager in engine.Torrents)
+			{
+				dataBytesReceived += manager.Monitor.DataBytesReceived;
+				dataBytesSent += manager.Monitor.DataBytesSent;
+			}
+
+			json.total_bytes_received = dataBytesReceived;
+			json.total_bytes_sent = dataBytesSent;
+
+			json.total_bytes_received_text = Tools.DataSizeText(dataBytesReceived);
+			json.total_bytes_sent_text = Tools.DataSizeText(dataBytesSent);
+
 			json.start_time = Globals.StartTime;
 
 			if (Globals.ReadyTime != Globals.StartTime)
 				json.ready_minutes = (Globals.ReadyTime - Globals.StartTime).TotalMinutes;
+
+			json.time_now = DateTime.Now;
+			json.run_time_text = Tools.TimeTookText(DateTime.Now - Globals.StartTime);
 
 			json.dht_state = engine.Dht.State.ToString();
 
@@ -263,6 +283,12 @@ namespace dome_bt
 				result.peers_leechs = torrentManager.Peers.Leechs;
 				result.peers_seeds = torrentManager.Peers.Seeds;
 
+				result.bytes_received = torrentManager.Monitor.DataBytesReceived;
+				result.bytes_sent = torrentManager.Monitor.DataBytesSent;
+
+				result.bytes_received_text = Tools.DataSizeText(torrentManager.Monitor.DataBytesReceived);
+				result.bytes_sent_text = Tools.DataSizeText(torrentManager.Monitor.DataBytesSent);
+
 				dynamic files = new JArray();
 
 				foreach (var fileInfo in torrentManager.Files.Where(f => f.Priority != Priority.DoNotDownload && f.Priority != Priority.Normal))
@@ -278,8 +304,6 @@ namespace dome_bt
 
 				}
 				result.files = files;
-
-
 
 				torrents.Add(result);
 			}
