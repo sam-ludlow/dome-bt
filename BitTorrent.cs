@@ -3,6 +3,8 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Linq;
+using System.IO;
 
 using MonoTorrent.Client;
 using MonoTorrent;
@@ -80,6 +82,24 @@ namespace dome_bt
 		public async Task Worker()
 		{
 			int pad = 0;
+
+			//
+			// Clear old directories
+			//
+			List<string> currentNames = new List<string>(Globals.Magnets.Values.Select(info => info.Name));
+
+			if (Directory.Exists(Globals.DirectoryDownloads) == true)
+			{
+				foreach (string directory in Directory.GetDirectories(Globals.DirectoryDownloads))
+				{
+					if (currentNames.Contains(Path.GetFileName(directory), StringComparer.OrdinalIgnoreCase) == false)
+					{
+						Console.Write($"Remove old directory {directory} ...");
+						Directory.Delete(directory, true);
+						Console.WriteLine("...done");
+					}
+				}
+			}
 
 			//
 			// Add Magnets
