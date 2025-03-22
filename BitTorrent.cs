@@ -15,6 +15,8 @@ namespace dome_bt
 	{
 		public ClientEngine Engine;
 
+		public Dictionary<string, TorrentManager> TorrentManagers = new Dictionary<string, TorrentManager>();
+
 		private CancellationTokenSource Cancellation = new CancellationTokenSource();
 
 		private int MaximumConnectionsPerTorrent = 50;
@@ -114,14 +116,17 @@ namespace dome_bt
 				if (MagnetLink.TryParse(magnetInfo.Magnet, out magnetLink) == false)
 					throw new ApplicationException($"Bad magnet link: {magnetInfo.Magnet}");
 
+				magnetInfo.MagnetLink = magnetLink;
+
 				var torrentSettings = new TorrentSettingsBuilder
 				{
 					MaximumConnections = MaximumConnectionsPerTorrent,
 				};
 
 				magnetInfo.TorrentManager = await Engine.AddAsync(magnetLink, Globals.DirectoryDownloads, torrentSettings.ToSettings());
+				magnetInfo.Hash = magnetLink.InfoHashes.V1OrV2.ToHex();
 
-				Console.WriteLine($"{assetType}	{magnetInfo.Version}	{magnetInfo.Name}");
+				Console.WriteLine($"{assetType}	{magnetInfo.Version}	{magnetInfo.Name}	{magnetInfo.Hash}");
 
 				pad = Math.Max(pad, magnetInfo.Name.Length);
 			}
@@ -164,11 +169,28 @@ namespace dome_bt
 
 					await manager.StartAsync();
 
+					TorrentManagers.Add(manager.MagnetLink.InfoHashes.V1OrV2.ToHex(), manager);
+
 					Console.WriteLine($"{name}	READY	{manager.Files.Count}");
 				}));
 			}
 
 			await Task.WhenAll(managerTasks);
+
+			//
+			// Clear old torrent cache files
+			//
+			foreach (string directory in new string[] { Path.Combine(Globals.DirectoryCache, "fastresume"), Path.Combine(Globals.DirectoryCache, "metadata") })
+			{
+				if (Directory.Exists(directory) == true)
+				{
+					foreach (string filename in Directory.GetFiles(directory))
+					{
+						if (TorrentManagers.ContainsKey(Path.GetFileNameWithoutExtension(filename)) == false)
+							File.Delete(filename);
+					}
+				}
+			}
 
 			Globals.ReadyTime = DateTime.Now;
 

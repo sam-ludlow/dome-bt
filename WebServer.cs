@@ -190,6 +190,8 @@ namespace dome_bt
 			
 			json.cache_directory = engine.Settings.CacheDirectory;
 
+			json.priorities = new JArray(Enum.GetNames(typeof(Priority)));
+
 			//
 			// Magnets
 			//
@@ -197,13 +199,23 @@ namespace dome_bt
 			dynamic magnets = new JArray();
 			foreach (AssetType magnetType in Globals.Magnets.Keys)
 			{
+				MagnetInfo info = Globals.Magnets[magnetType];
+
 				dynamic result = new JObject();
 
 				result.type = magnetType.ToString();
-				result.name = Globals.Magnets[magnetType].Name;
-				result.version = Globals.Magnets[magnetType].Version;
-				result.magnet_link = Globals.Magnets[magnetType].Magnet;
-				result.torrent_available = Globals.Magnets[magnetType].TorrentManager != null ? "true" : "false";
+				result.name = info.Name;
+				result.version = info.Version;
+				result.hash = info.Hash;
+				result.magnet_link = info.Magnet;
+
+				result.torrent_available = info.TorrentManager != null ? true : false;
+
+				if (info.MagnetLink != null)
+				{
+					result.announce_urls = new JArray(info.MagnetLink.AnnounceUrls);
+					result.webseeds = new JArray(info.MagnetLink.Webseeds);
+				}
 
 				magnets.Add(result);
 			}
@@ -270,6 +282,7 @@ namespace dome_bt
 				dynamic result = new JObject();
 
 				result.name = torrentManager.Name;
+				result.hash = torrentManager.MagnetLink.InfoHashes.V1OrV2.ToHex();
 				result.file_count = torrentManager.Files.Count;
 				result.state = torrentManager.State.ToString();
 				result.has_metadata = torrentManager.HasMetadata;
@@ -289,22 +302,6 @@ namespace dome_bt
 				result.bytes_received_text = Tools.DataSizeText(torrentManager.Monitor.DataBytesReceived);
 				result.bytes_sent_text = Tools.DataSizeText(torrentManager.Monitor.DataBytesSent);
 
-				dynamic files = new JArray();
-
-				foreach (var fileInfo in torrentManager.Files.Where(f => f.Priority != Priority.DoNotDownload && f.Priority != Priority.Normal))
-				{
-					dynamic file = new JObject();
-
-					file.path = fileInfo.Path;
-					file.priority = fileInfo.Priority.ToString();
-					file.length = fileInfo.Length;
-					file.percent_complete = fileInfo.BitField.PercentComplete;
-
-					files.Add(file);
-
-				}
-				result.files = files;
-
 				torrents.Add(result);
 			}
 			json.torrents = torrents;
@@ -312,16 +309,37 @@ namespace dome_bt
 			writer.WriteLine(json.ToString(Formatting.Indented));
 		}
 
-		// depreciated
-		public void _api_download(HttpListenerContext context, StreamWriter writer)
+		public void _api_files(HttpListenerContext context, StreamWriter writer)
 		{
-			string filename = context.Request.QueryString["filename"] ?? throw new ApplicationException("filename not passed");
+			string hash = context.Request.QueryString["hash"] ?? throw new ApplicationException("hash not passed");
 
-			context.Response.Headers["Content-Type"] = "application/octet-stream";
-			context.Response.Headers["Content-Disposition"] = $"attachment; filename=\"{Path.GetFileName(filename)}\"";
+			if (Globals.BitTorrent.TorrentManagers.ContainsKey(hash) == false)
+				throw new ApplicationException("hash not found");
 
-			using (FileStream fileStream = new FileStream(filename, FileMode.Open, FileAccess.Read))
-				fileStream.CopyTo(context.Response.OutputStream);
+			string priority = context.Request.QueryString["priority"];
+
+			TorrentManager manager = Globals.BitTorrent.TorrentManagers[hash];
+
+			var managerFiles = manager.Files;
+			if (priority != null)
+				managerFiles = manager.Files.Where(f => f.Priority == (Priority)Enum.Parse(typeof(Priority), priority)).ToList();
+
+			JArray files = new JArray();
+
+			foreach (var fileInfo in managerFiles)
+			{
+				dynamic file = new JObject();
+
+				file.path = fileInfo.Path;
+				file.priority = fileInfo.Priority.ToString();
+				file.length = fileInfo.Length;
+				file.piece_count = fileInfo.PieceCount;
+				file.percent_complete = fileInfo.BitField.PercentComplete;
+
+				files.Add(file);
+			}
+
+			writer.WriteLine(files.ToString(Formatting.Indented));
 		}
 
 		public void _api_file(HttpListenerContext context, StreamWriter writer)
@@ -406,9 +424,6 @@ namespace dome_bt
 			file.piece_start_index = fileInfo.StartPieceIndex;
 			file.piece_count = fileInfo.PieceCount;
 
-			// depreciated
-			file.url = $"{Globals.ListenAddress}api/download?filename={Uri.EscapeDataString(fileInfo.FullPath)}";
-
 			writer.WriteLine(file.ToString(Formatting.Indented));
 
 		}
@@ -455,6 +470,9 @@ namespace dome_bt
 
 <h4>Software Disk</h4>
 <a href=""http://localhost:12381/api/file?list=@&software=@&disk=@"" target=""_blank"" >http://localhost:12381/api/file?list=@&software=@&disk=@</a>
+
+<h4>Torrent File List</h4>
+<a href=""http://localhost:12381/api/files?hash=@&priority=@"" target=""_blank"" >http://localhost:12381/api/files?hash=@&priority=@</a>
 
 </body>
 </html>

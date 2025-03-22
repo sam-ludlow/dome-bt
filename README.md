@@ -9,12 +9,6 @@ BitTorrent client for Pleasuredome. For use with `MAME-AO`.
 
 https://github.com/sam-ludlow/mame-ao
 
-## System requirements
-- Windows with .net framework 4.8
-- 32 bit / 64 bit
-- 0.5 Gb RAM free
-- Lots Gb DISK free
-
 ## Building from Source
 If you don't trust me you can build from source.
 

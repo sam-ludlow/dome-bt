@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Collections.Generic;
 
 using MonoTorrent.Client;
+using MonoTorrent;
 
 namespace dome_bt
 {
@@ -70,6 +71,8 @@ namespace dome_bt
 		public string Name;
 		public string Version;
 		public string Magnet;
+		public string Hash;
+		public MagnetLink MagnetLink;
 
 		public TorrentManager TorrentManager;
 	}
@@ -77,20 +80,18 @@ namespace dome_bt
 	public class Processor
 	{
 		private readonly string WelcomeText = @"@VERSION
-'########:::'#######::'##::::'##:'########::::::::::'########::'########:
- ##.... ##:'##.... ##: ###::'###: ##.....::::::::::: ##.... ##:... ##..::
- ##:::: ##: ##:::: ##: ####'####: ##:::::::::::::::: ##:::: ##:::: ##::::
- ##:::: ##: ##:::: ##: ## ### ##: ######:::'#######: ########::::: ##::::
- ##:::: ##: ##:::: ##: ##. #: ##: ##...::::........: ##.... ##:::: ##::::
- ##:::: ##: ##:::: ##: ##:.:: ##: ##:::::::::::::::: ##:::: ##:::: ##::::
- ########::. #######:: ##:::: ##: ########:::::::::: ########::::: ##::::
-........::::.......:::..:::::..::........:::::::::::........::::::..:::::
+
+$$$$$$$\   $$$$$$\  $$\      $$\ $$$$$$$$\       $$$$$$$\ $$$$$$$$\ 
+$$  __$$\ $$  __$$\ $$$\    $$$ |$$  _____|      $$  __$$\\__$$  __|
+$$ |  $$ |$$ /  $$ |$$$$\  $$$$ |$$ |            $$ |  $$ |  $$ |   
+$$ |  $$ |$$ |  $$ |$$\$$\$$ $$ |$$$$$\          $$$$$$$\ |  $$ |   
+$$ |  $$ |$$ |  $$ |$$ \$$$  $$ |$$  __|         $$  __$$\   $$ |   
+$$ |  $$ |$$ |  $$ |$$ |\$  /$$ |$$ |            $$ |  $$ |  $$ |   
+$$$$$$$  | $$$$$$  |$$ | \_/ $$ |$$$$$$$$\       $$$$$$$  |  $$ |   
+\_______/  \______/ \__|     \__|\________|      \_______/   \__|   
 
               See the README for more information
              https://github.com/sam-ludlow/dome-bt
-
-            More information can be found at MAME-AO
-https://github.com/sam-ludlow/mame-ao?tab=readme-ov-file#bittorrent
 
 ";
 
@@ -104,8 +105,6 @@ https://github.com/sam-ludlow/mame-ao?tab=readme-ov-file#bittorrent
 
 			WebServer webServer = new WebServer();
 			webServer.StartListener();
-
-			//	Process.Start(new ProcessStartInfo(Globals.ListenAddress) { UseShellExecute = true });
 
 			Globals.BitTorrent = new BitTorrent();
 			Globals.BitTorrent.Run();
