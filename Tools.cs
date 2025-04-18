@@ -45,6 +45,19 @@ namespace dome_bt
 			ConsoleRule(head);
 		}
 
+		public static void ReportError(Exception e, string title)
+		{
+			Console.WriteLine();
+			Console.WriteLine($"!!! {title}: " + e.Message);
+			Console.WriteLine();
+			Console.WriteLine(e.ToString());
+			Console.WriteLine();
+			Console.WriteLine("If you want to submit an error report please copy and paste the text from here.");
+			Console.WriteLine("Select All (Ctrl+A) -> Copy (Ctrl+C) -> notepad -> paste (Ctrl+V)");
+			Console.WriteLine();
+			Console.WriteLine("Report issues here https://github.com/sam-ludlow/mame-ao/issues");
+		}
+
 		public static string FetchCached(string url)
 		{
 			string filename = Path.Combine(Globals.DirectoryCache, Tools.ValidFileName(url.Substring(8)));

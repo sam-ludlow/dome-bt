@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Net;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,7 +16,9 @@ namespace dome_bt
 
 		public Dictionary<string, TorrentManager> TorrentManagers = new Dictionary<string, TorrentManager>();
 
-		private CancellationTokenSource Cancellation = new CancellationTokenSource();
+		public object _Lock = new object();
+
+		public bool AskStop = false;
 
 		private int MaximumConnectionsPerTorrent = 50;
 
@@ -31,9 +32,11 @@ namespace dome_bt
 			var engineSettings = new EngineSettingsBuilder
 			{
 				AllowPortForwarding = true,
+
 				AutoSaveLoadDhtCache = true,
 				AutoSaveLoadFastResume = true,
 				AutoSaveLoadMagnetLinkMetadata = true,
+				FastResumeMode = FastResumeMode.BestEffort,
 
 				CacheDirectory = Globals.DirectoryCache,
 
@@ -58,26 +61,44 @@ namespace dome_bt
 		{
 			var task = Worker();
 
-			//	TODO: Handle clean shutdown
-
-
+			Exception error = null;
 			try
 			{
 				task.Wait();
 			}
-			catch (OperationCanceledException)                                                                
+			catch (Exception e)
 			{
-
+				Tools.ReportError(e, "Fatal Error");
+				error = e;
+			}
+			finally
+			{
+				ShutDown();
 			}
 
+			if (error != null)
+			{
+				Console.WriteLine();
+				Console.WriteLine("Press any key to continue, program has crashed and will exit.");
+				Console.ReadKey();
+				Environment.Exit(1);
+			}
+		}
+
+		public void ShutDown()
+		{
 			foreach (var manager in Engine.Torrents)
 			{
+				Console.Write($"Stopping Torrent: {manager.Name} ...");
+
 				var stoppingTask = manager.StopAsync();
 				while (manager.State != TorrentState.Stopped)
 				{
 					Task.WhenAll(stoppingTask, Task.Delay(250)).Wait();
 				}
 				stoppingTask.Wait();
+
+				Console.WriteLine("...done");
 			}
 		}
 
@@ -149,11 +170,11 @@ namespace dome_bt
 					if (manager.Files.Count == 0)
 					{
 						await manager.StartAsync();
-						await manager.WaitForMetadataAsync(Cancellation.Token);
+						await manager.WaitForMetadataAsync();
 						await manager.StopAsync();
 					}
 
-					Console.WriteLine($"{name}	Starting Priority	{manager.Files[0].Priority}");
+					Console.WriteLine($"{name}	META	{manager.Files.Count}	{manager.Files[0].Priority}");
 
 					if (manager.Files[0].Priority == Priority.Normal)
 					{
@@ -168,8 +189,14 @@ namespace dome_bt
 					}
 
 					await manager.StartAsync();
+					
+					string hex = manager.MagnetLink.InfoHashes.V1OrV2.ToHex();
 
-					TorrentManagers.Add(manager.MagnetLink.InfoHashes.V1OrV2.ToHex(), manager);
+					if (hex == null || hex.Length != 40)
+						throw new ApplicationException($"Bad Hash HashChecked:{manager.HashChecked}");
+
+					lock (_Lock)
+						TorrentManagers.Add(hex, manager);
 
 					Console.WriteLine($"{name}	READY	{manager.Files.Count}");
 				}));
@@ -186,8 +213,11 @@ namespace dome_bt
 				{
 					foreach (string filename in Directory.GetFiles(directory))
 					{
-						if (TorrentManagers.ContainsKey(Path.GetFileNameWithoutExtension(filename)) == false)
-							File.Delete(filename);
+						lock (_Lock)
+						{
+							if (TorrentManagers.ContainsKey(Path.GetFileNameWithoutExtension(filename)) == false)
+								File.Delete(filename);
+						}
 					}
 				}
 			}
@@ -199,9 +229,9 @@ namespace dome_bt
 			//
 			Tools.ConsoleHeading(1, $"All Torrents Ready");
 
-			while (Engine.IsRunning)
+			while (AskStop == false)
 			{
-				await Task.Delay(5000, Cancellation.Token);
+				await Task.Delay(5000);
 
 				Console.Clear();
 
@@ -228,7 +258,7 @@ namespace dome_bt
 				}
 			}
 
-
+			Console.WriteLine("Clean Exit.");
 		}
 
 	}

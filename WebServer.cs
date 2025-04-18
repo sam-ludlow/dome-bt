@@ -141,6 +141,17 @@ namespace dome_bt
 			writer.WriteLine(json.ToString(Formatting.Indented));
 		}
 
+		public void _api_stop(HttpListenerContext context, StreamWriter writer)
+		{
+			Globals.BitTorrent.AskStop = true;
+
+			dynamic json = new JObject();
+
+			json.message = "OK";
+
+			writer.WriteLine(json.ToString(Formatting.Indented));
+		}
+
 		public void _api_info(HttpListenerContext context, StreamWriter writer)
 		{
 			//	http://localhost:12381/api/info
@@ -313,12 +324,16 @@ namespace dome_bt
 		{
 			string hash = context.Request.QueryString["hash"] ?? throw new ApplicationException("hash not passed");
 
-			if (Globals.BitTorrent.TorrentManagers.ContainsKey(hash) == false)
-				throw new ApplicationException("hash not found");
-
 			string priority = context.Request.QueryString["priority"];
 
-			TorrentManager manager = Globals.BitTorrent.TorrentManagers[hash];
+			TorrentManager manager;
+			lock (Globals.BitTorrent._Lock)
+			{
+				if (Globals.BitTorrent.TorrentManagers.ContainsKey(hash) == false)
+					throw new ApplicationException("hash not found");
+
+				manager = Globals.BitTorrent.TorrentManagers[hash];
+			}
 
 			var managerFiles = manager.Files;
 			if (priority != null)
