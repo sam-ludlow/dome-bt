@@ -20,7 +20,7 @@ namespace dome_bt
 
 		public bool AskStop = false;
 
-		private int MaximumConnectionsPerTorrent = 50;
+		private int MaximumConnectionsPerTorrent = 100;
 
 		public BitTorrent()
 		{
@@ -51,8 +51,14 @@ namespace dome_bt
 			};
 
 			//	TODO: Impliment rate limiting
-			//engineSettings.MaximumDownloadRate;
-			//engineSettings.MaximumUploadRate;
+
+			//double downloadLimit = 20.0;
+			//double uploadLimit = 5.0;
+
+			//double megaBitsToBytes = 125000.0;
+
+			//engineSettings.MaximumDownloadRate = (int)(downloadLimit * megaBitsToBytes);
+			//engineSettings.MaximumUploadRate = (int)(uploadLimit * megaBitsToBytes);
 
 			Engine = new ClientEngine(engineSettings.ToSettings());
 		}
@@ -216,7 +222,11 @@ namespace dome_bt
 						lock (_Lock)
 						{
 							if (TorrentManagers.ContainsKey(Path.GetFileNameWithoutExtension(filename)) == false)
+							{
+								Console.Write($"Remove old cache file {filename} ...");
 								File.Delete(filename);
+								Console.WriteLine("...done");
+							}
 						}
 					}
 				}
