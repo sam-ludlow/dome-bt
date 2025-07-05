@@ -364,40 +364,47 @@ namespace dome_bt
 			//	SoftwareRom		http://localhost:12381/api/file?list=@&software=@
 			//	SoftwareDisk	http://localhost:12381/api/file?list=@&software=@&disk=@
 
+			//	HbMameMachineRom		http://localhost:12381/api/file?system=hbmame&machine=@
+			//	HbMameSoftwareRom		http://localhost:12381/api/file?system=hbmame&list=@&software=@
+
 			Dictionary<string, string> parameters = new Dictionary<string, string>();
 
-			foreach (string valid in new string[] { "machine", "list", "disk", "software" })
+			foreach (string valid in new string[] { "system", "machine", "list", "disk", "software" })
 			{
 				string qs = context.Request.QueryString[valid];
 				if (qs != null)
 					parameters.Add(valid, qs);
 			}
+			if (parameters.ContainsKey("system") == false)
+				parameters.Add("system", "mame");
+
+			bool isMame = parameters["system"] == "mame";
 
 			AssetType type;
 			string path;
 
-			if (parameters.Count == 1 && parameters.ContainsKey("machine"))
+			if (parameters.Count == 2 && parameters.ContainsKey("machine"))
 			{
-				type = AssetType.MachineRom;
+				type = isMame ? AssetType.MachineRom : AssetType.HbMameMachineRom;
 				path = parameters["machine"] + ".zip";
 			}
 			else
 			{
-				if (parameters.Count == 2 && parameters.ContainsKey("machine") && parameters.ContainsKey("disk"))
+				if (parameters.Count == 3 && parameters.ContainsKey("machine") && parameters.ContainsKey("disk"))
 				{
 					type = AssetType.MachineDisk;
 					path = Path.Combine(parameters["machine"], parameters["disk"] + ".chd");
 				}
 				else
 				{
-					if (parameters.Count == 2 && parameters.ContainsKey("list") && parameters.ContainsKey("software"))
+					if (parameters.Count == 3 && parameters.ContainsKey("list") && parameters.ContainsKey("software"))
 					{
-						type = AssetType.SoftwareRom;
+						type = isMame ? AssetType.SoftwareRom : AssetType.HbMameSoftwareRom;
 						path = Path.Combine(parameters["list"], parameters["software"] + ".zip");
 					}
 					else
 					{
-						if (parameters.Count == 3 && parameters.ContainsKey("list") && parameters.ContainsKey("software") && parameters.ContainsKey("disk"))
+						if (parameters.Count == 4 && parameters.ContainsKey("list") && parameters.ContainsKey("software") && parameters.ContainsKey("disk"))
 						{
 							type = AssetType.SoftwareDisk;
 							path = Path.Combine(parameters["list"], parameters["software"], parameters["disk"] + ".chd");
@@ -458,10 +465,11 @@ namespace dome_bt
 
 <p><a href=""https://pleasuredome.github.io/pleasuredome/mame/index.html"" target=""_blank"" >https://pleasuredome.github.io/pleasuredome/mame/index.html</a></p>
 
+<p><a href=""https://pleasuredome.github.io/pleasuredome/nonmame/hbmame/index.html"" target=""_blank"" >https://pleasuredome.github.io/pleasuredome/nonmame/hbmame/index.html</a></p>
+
 <p>When DOME-BT is running with MAME-AO the assets will be automatically obtained from Bit Torrents rather than using archive.org</p>
 
 <a href=""https://github.com/sam-ludlow/mame-ao"" target=""_blank"" >https://github.com/sam-ludlow/mame-ao</a>
-
 
 <h2>DOME-BT URLS</h2>
 
@@ -471,20 +479,34 @@ namespace dome_bt
 <h3>Torrents' info</h3>
 <a href=""http://localhost:12381/api/info"" target=""_blank"" >http://localhost:12381/api/info</a>
 
+<hr />
+
 <h3>Download</h3>
 <p>To begin a download, perform a GET you can then poll the same URL until the file is downloaded.</p>
 
-<h4>Machine Rom</h4>
+<hr />
+
+<h4>MAME - Machine Rom</h4>
 <a href=""http://localhost:12381/api/file?machine=@"" target=""_blank"" >http://localhost:12381/api/file?machine=@</a>
 
-<h4>Machine Disk</h4>
+<h4>MAME - Machine Disk</h4>
 <a href=""http://localhost:12381/api/file?machine=@&disk=@"" target=""_blank"" >http://localhost:12381/api/file?machine=@&disk=@</a>
 
-<h4>Software Rom</h4>
+<h4>MAME - Software Rom</h4>
 <a href=""http://localhost:12381/api/file?list=@&software=@"" target=""_blank"" >http://localhost:12381/api/file?list=@&software=@</a>
 
-<h4>Software Disk</h4>
+<h4>MAME - Software Disk</h4>
 <a href=""http://localhost:12381/api/file?list=@&software=@&disk=@"" target=""_blank"" >http://localhost:12381/api/file?list=@&software=@&disk=@</a>
+
+<hr />
+
+<h4>HBMAME - Machine Rom</h4>
+<a href=""http://localhost:12381/api/file?system=hbmame&machine=@"" target=""_blank"" >http://localhost:12381/api/file?system=hbmame&machine=@</a>
+
+<h4>HBMAME - Software Rom</h4>
+<a href=""http://localhost:12381/api/file?system=hbmame&list=@&software=@"" target=""_blank"" >http://localhost:12381/api/file?system=hbmame&list=@&software=@</a>
+
+<hr />
 
 <h4>Torrent File List</h4>
 <a href=""http://localhost:12381/api/files?hash=@&priority=@"" target=""_blank"" >http://localhost:12381/api/files?hash=@&priority=@</a>

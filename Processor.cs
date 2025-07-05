@@ -1,15 +1,43 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Reflection;
-using System.Diagnostics;
-using System.Collections.Generic;
+using System.Text;
 
-using MonoTorrent.Client;
 using MonoTorrent;
+using MonoTorrent.Client;
 
 namespace dome_bt
 {
+	public enum AssetType
+	{
+		MachineRom,
+		MachineDisk,
+		SoftwareRom,
+		SoftwareDisk,
+		HbMameMachineRom,
+		HbMameSoftwareRom,
+	}
+
+	public class MagnetInfo
+	{
+		public MagnetInfo(string name, string version, string magnet)
+		{
+			Name = name;
+			Version = version;
+			Magnet = magnet;
+		}
+		public string Name;
+		public string Version;
+		public string Magnet;
+		public string Hash;
+		public MagnetLink MagnetLink;
+
+		public TorrentManager TorrentManager;
+	}
+
 	public class Globals
 	{
 		public static string AssemblyVersion;
@@ -31,6 +59,10 @@ namespace dome_bt
 
 		public static int Pid = Process.GetCurrentProcess().Id;
 
+		public static List<string> Systems = new List<string>();
+
+		public static Dictionary<string, string> Config = new Dictionary<string, string>();
+
 		static Globals()
 		{
 			Version assemblyVersion = Assembly.GetExecutingAssembly().GetName().Version ?? throw new ApplicationException("Can't find Assembly Version");
@@ -50,31 +82,6 @@ namespace dome_bt
 			HttpClient.Timeout = TimeSpan.FromSeconds(180);     // metdata 3 minutes
 
 		}
-	}
-
-	public enum AssetType
-	{
-		MachineRom,
-		MachineDisk,
-		SoftwareRom,
-		SoftwareDisk,
-	}
-
-	public class MagnetInfo
-	{
-		public MagnetInfo(string name, string version, string magnet)
-		{
-			Name = name;
-			Version = version;
-			Magnet = magnet;
-		}
-		public string Name;
-		public string Version;
-		public string Magnet;
-		public string Hash;
-		public MagnetLink MagnetLink;
-
-		public TorrentManager TorrentManager;
 	}
 
 	public class Processor
@@ -100,6 +107,32 @@ $$$$$$$  | $$$$$$  |$$ | \_/ $$ |$$$$$$$$\       $$$$$$$  |  $$ |
 			Console.Title = $"DOME-BT {Globals.AssemblyVersion}";
 
 			Console.Write(WelcomeText.Replace("@VERSION", Globals.AssemblyVersion));
+
+			string configFilename = Path.Combine(Globals.DirectoryRoot, "_config.txt");
+			if (File.Exists(configFilename) == true)
+			{
+				using (StreamReader reader = new StreamReader(configFilename, Encoding.UTF8))
+				{
+					string line;
+					while ((line = reader.ReadLine()) != null)
+					{
+						string[] parts = line.Split('\t');
+						if (parts.Length == 2)
+							Globals.Config.Add(parts[0].ToLower(), parts[1]);
+					}
+				}
+			}
+
+			if (Globals.Config.ContainsKey("systems") == true)
+			{
+				foreach (string system in Globals.Config["systems"].Split(','))
+					Globals.Systems.Add(system.Trim());
+			}
+			else
+			{
+				Globals.Systems.Add("mame");
+			}
+
 
 			PleasureDome.ParseMagentLinks();
 

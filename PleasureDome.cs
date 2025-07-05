@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 using HtmlAgilityPack;
 
@@ -8,8 +9,21 @@ namespace dome_bt
 	{
 		public static void ParseMagentLinks()
 		{
-			string url = "https://pleasuredome.github.io/pleasuredome/mame/index.html";
+			if (Globals.Systems.Contains("mame"))
+				ParseMagentLinks("https://pleasuredome.github.io/pleasuredome/mame/index.html",
+					new AssetType[] { AssetType.MachineRom, AssetType.MachineDisk, AssetType.SoftwareRom, AssetType.SoftwareDisk },
+					new List<string>(new string[] { "ROMs (merged)", "CHDs (merged)", "Software List ROMs (merged)", "Software List CHDs (merged)" }),
+					Globals.Magnets);
 
+			if (Globals.Systems.Contains("hbmame"))
+				ParseMagentLinks("https://pleasuredome.github.io/pleasuredome/nonmame/hbmame/index.html",
+					new AssetType[] { AssetType.HbMameMachineRom, AssetType.HbMameSoftwareRom, },
+					new List<string>(new string[] { "ROMs (merged)", "Software List ROMs (merged)", }),
+					Globals.Magnets);
+		}
+
+		public static void ParseMagentLinks(string url, AssetType[] assetTypes, List<string> names, Dictionary<AssetType, MagnetInfo> magnets)
+		{
 			Tools.ConsoleHeading(1, new string[] { "Pleasuredome", url });
 
 			string html = Tools.FetchCached(url) ?? throw new ApplicationException("Can't fetch HTML");
@@ -28,51 +42,22 @@ namespace dome_bt
 					continue;
 
 				string text = node.InnerText;
+				int index;
 
-				if (text.Contains("(merged)") == false)
-					continue;
+				index = text.IndexOf(' ');
+				string system = text.Substring(0, index);
+				text = text.Substring(index + 1);
 
-				if (text.StartsWith("MAME 0.") == false)
-					throw new ApplicationException("Bad text");
+				index = text.IndexOf(' ');
+				string version = text.Substring(0, index);
+				text = text.Substring(index + 1);
 
-				string version = text.Substring(7);
-				int index = version.IndexOf(' ');
-				string name = version.Substring(index + 1);
-				version = version.Substring(0, index);
-				name = name.Replace("(merged)", "").Trim();
+				//	Console.WriteLine($"{system}\t{version}\t{text}\t{href}");
 
-				AssetType assetType;
-
-				switch (name.ToLower())
-				{
-					case "roms":
-						assetType = AssetType.MachineRom;
-						break;
-
-					case "chds":
-						assetType = AssetType.MachineDisk;
-						break;
-
-					case "software list roms":
-						assetType = AssetType.SoftwareRom;
-						break;
-
-					case "software list chds":
-						assetType = AssetType.SoftwareDisk;
-						break;
-
-					default:
-						throw new ApplicationException($"Bad magnet link text");
-				}
-
-				if (Globals.Magnets.ContainsKey(assetType) == true)
-					throw new ApplicationException($"Duplicate magnet types {assetType}");
-
-				Globals.Magnets.Add(assetType, new MagnetInfo(node.InnerText, version, href));
+				index = names.IndexOf(text);
+				if (index != -1)
+					magnets.Add(assetTypes[index], new MagnetInfo(node.InnerText, version, href));
 			}
-
-			if (Globals.Magnets.Count != 4)
-				throw new ApplicationException("Did not find all 4 Magnets");
 		}
 	}
 }
