@@ -59,7 +59,7 @@ namespace dome_bt
 
 		public static int Pid = Process.GetCurrentProcess().Id;
 
-		public static List<string> Systems = new List<string>();
+		public static List<string> Cores = new List<string>();
 
 		public static Dictionary<string, string> Config = new Dictionary<string, string>();
 
@@ -123,14 +123,14 @@ $$$$$$$  | $$$$$$  |$$ | \_/ $$ |$$$$$$$$\       $$$$$$$  |  $$ |
 				}
 			}
 
-			if (Globals.Config.ContainsKey("systems") == true)
+			if (Globals.Config.ContainsKey("cores") == true)
 			{
-				foreach (string system in Globals.Config["systems"].Split(','))
-					Globals.Systems.Add(system.Trim());
+				foreach (string core in Globals.Config["cores"].Split(','))
+					Globals.Cores.Add(core.Trim());
 			}
 			else
 			{
-				Globals.Systems.Add("mame");
+				Globals.Cores.Add("mame");
 			}
 
 

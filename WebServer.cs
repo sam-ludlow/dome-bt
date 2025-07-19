@@ -364,21 +364,21 @@ namespace dome_bt
 			//	SoftwareRom		http://localhost:12381/api/file?list=@&software=@
 			//	SoftwareDisk	http://localhost:12381/api/file?list=@&software=@&disk=@
 
-			//	HbMameMachineRom		http://localhost:12381/api/file?system=hbmame&machine=@
-			//	HbMameSoftwareRom		http://localhost:12381/api/file?system=hbmame&list=@&software=@
+			//	HbMameMachineRom		http://localhost:12381/api/file?core=hbmame&machine=@
+			//	HbMameSoftwareRom		http://localhost:12381/api/file?core=hbmame&list=@&software=@
 
 			Dictionary<string, string> parameters = new Dictionary<string, string>();
 
-			foreach (string valid in new string[] { "system", "machine", "list", "disk", "software" })
+			foreach (string valid in new string[] { "core", "machine", "list", "disk", "software" })
 			{
 				string qs = context.Request.QueryString[valid];
 				if (qs != null)
 					parameters.Add(valid, qs);
 			}
-			if (parameters.ContainsKey("system") == false)
-				parameters.Add("system", "mame");
+			if (parameters.ContainsKey("core") == false)
+				parameters.Add("core", "core");
 
-			bool isMame = parameters["system"] == "mame";
+			bool isMame = parameters["core"] == "mame";	//	else HBMAME for now
 
 			AssetType type;
 			string path;
@@ -418,6 +418,8 @@ namespace dome_bt
 			}
 
 			TorrentManager manager = Globals.Magnets[type].TorrentManager ?? throw new ApplicationException("Torrent Manager Not available");
+
+			// TODO: May be threading issues here (very intermittant)
 
 			IEnumerable<ITorrentManagerFile> files = manager.Files.Where(f => f.Path == path);
 
@@ -501,10 +503,10 @@ namespace dome_bt
 <hr />
 
 <h4>HBMAME - Machine Rom</h4>
-<a href=""http://localhost:12381/api/file?system=hbmame&machine=@"" target=""_blank"" >http://localhost:12381/api/file?system=hbmame&machine=@</a>
+<a href=""http://localhost:12381/api/file?core=hbmame&machine=@"" target=""_blank"" >http://localhost:12381/api/file?core=hbmame&machine=@</a>
 
 <h4>HBMAME - Software Rom</h4>
-<a href=""http://localhost:12381/api/file?system=hbmame&list=@&software=@"" target=""_blank"" >http://localhost:12381/api/file?system=hbmame&list=@&software=@</a>
+<a href=""http://localhost:12381/api/file?core=hbmame&list=@&software=@"" target=""_blank"" >http://localhost:12381/api/file?core=hbmame&list=@&software=@</a>
 
 <hr />
 

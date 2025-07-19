@@ -9,13 +9,13 @@ namespace dome_bt
 	{
 		public static void ParseMagentLinks()
 		{
-			if (Globals.Systems.Contains("mame"))
+			if (Globals.Cores.Contains("mame"))
 				ParseMagentLinks("https://pleasuredome.github.io/pleasuredome/mame/index.html",
 					new AssetType[] { AssetType.MachineRom, AssetType.MachineDisk, AssetType.SoftwareRom, AssetType.SoftwareDisk },
 					new List<string>(new string[] { "ROMs (merged)", "CHDs (merged)", "Software List ROMs (merged)", "Software List CHDs (merged)" }),
 					Globals.Magnets);
 
-			if (Globals.Systems.Contains("hbmame"))
+			if (Globals.Cores.Contains("hbmame"))
 				ParseMagentLinks("https://pleasuredome.github.io/pleasuredome/nonmame/hbmame/index.html",
 					new AssetType[] { AssetType.HbMameMachineRom, AssetType.HbMameSoftwareRom, },
 					new List<string>(new string[] { "ROMs (merged)", "Software List ROMs (merged)", }),
@@ -45,14 +45,14 @@ namespace dome_bt
 				int index;
 
 				index = text.IndexOf(' ');
-				string system = text.Substring(0, index);
+				string core = text.Substring(0, index).ToLower();
 				text = text.Substring(index + 1);
 
 				index = text.IndexOf(' ');
 				string version = text.Substring(0, index);
 				text = text.Substring(index + 1);
 
-				//	Console.WriteLine($"{system}\t{version}\t{text}\t{href}");
+				//Console.WriteLine($"{core}\t{version}\t{text}\t{href}");
 
 				index = names.IndexOf(text);
 				if (index != -1)
