@@ -376,7 +376,7 @@ namespace dome_bt
 					parameters.Add(valid, qs);
 			}
 			if (parameters.ContainsKey("core") == false)
-				parameters.Add("core", "core");
+				parameters.Add("core", "mame");
 
 			bool isMame = parameters["core"] == "mame";	//	else HBMAME for now
 
