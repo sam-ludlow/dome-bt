@@ -164,6 +164,8 @@ namespace dome_bt
 			json.pid = Globals.Pid;
 			json.is_running = engine.IsRunning;
 
+			json.cores = new JArray(Globals.Cores);
+
 			json.half_open_connections = engine.ConnectionManager.HalfOpenConnections;
 			json.open_connections = engine.ConnectionManager.OpenConnections;
 
