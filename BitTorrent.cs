@@ -22,12 +22,26 @@ namespace dome_bt
 
 		private int MaximumConnectionsPerTorrent = 100;
 
-		public BitTorrent()
+		private readonly double MegaBitsToBytes = 125000.0;
+        private double MaximumDownloadRate = 0;
+		private double MaximumUploadRate = 0;
+
+
+        public BitTorrent()
 		{
-			//
-			// Setup Engine
-			//
-			int portNumber = 55123;
+			if (Globals.Config.ContainsKey("maximum-connections-per-torrent") == true)
+				MaximumConnectionsPerTorrent = Int32.Parse(Globals.Config["maximum-connections-per-torrent"]);
+
+			if (Globals.Config.ContainsKey("maximum-download-rate-mbps") == true)
+				MaximumDownloadRate = Double.Parse(Globals.Config["maximum-download-rate-mbps"]);
+
+			if (Globals.Config.ContainsKey("maximum-upload-rate-mbps") == true)
+				MaximumUploadRate = Double.Parse(Globals.Config["maximum-upload-rate-mbps"]);
+
+            //
+            // Setup Engine
+            //
+            int portNumber = 55123;
 
 			var engineSettings = new EngineSettingsBuilder
 			{
@@ -47,20 +61,18 @@ namespace dome_bt
 
 				DhtEndPoint = new IPEndPoint(IPAddress.Any, portNumber),
 
-				MaximumConnections = 4 * MaximumConnectionsPerTorrent,
+				MaximumConnections = Globals.Magnets.Count * MaximumConnectionsPerTorrent,
+				MaximumDownloadRate = (int)(MaximumDownloadRate * MegaBitsToBytes),
+				MaximumUploadRate = (int)(MaximumUploadRate * MegaBitsToBytes),
 			};
 
-			//	TODO: Impliment rate limiting
+            Tools.ConsoleHeading(1, new string[] { "Engine Settings", "(0 = No limit)" });
 
-			//double downloadLimit = 20.0;
-			//double uploadLimit = 5.0;
+			Console.WriteLine($"Maximum Connections   :{engineSettings.MaximumConnections} (Magnets:{Globals.Magnets.Count} X Max Per Torrent: {MaximumConnectionsPerTorrent})");
+			Console.WriteLine($"Maximum Download Rate : {engineSettings.MaximumDownloadRate} B/s ({MaximumDownloadRate} Mbit/s)");
+			Console.WriteLine($"Maximum Upload Rate   : {engineSettings.MaximumUploadRate} B/s ({MaximumUploadRate} Mbit/s)");
 
-			//double megaBitsToBytes = 125000.0;
-
-			//engineSettings.MaximumDownloadRate = (int)(downloadLimit * megaBitsToBytes);
-			//engineSettings.MaximumUploadRate = (int)(uploadLimit * megaBitsToBytes);
-
-			Engine = new ClientEngine(engineSettings.ToSettings());
+            Engine = new ClientEngine(engineSettings.ToSettings());
 		}
 
 		public void Run()
@@ -93,20 +105,29 @@ namespace dome_bt
 
 		public void ShutDown()
 		{
-			foreach (var manager in Engine.Torrents)
-			{
-				Console.Write($"Stopping Torrent: {manager.Name} ...");
+            Tools.ConsoleHeading(1, $"Shutting down...");
 
-				var stoppingTask = manager.StopAsync();
-				while (manager.State != TorrentState.Stopped)
-				{
-					Task.WhenAll(stoppingTask, Task.Delay(250)).Wait();
-				}
-				stoppingTask.Wait();
+            List<Task> managerTasks = new List<Task>();
 
-				Console.WriteLine("...done");
-			}
-		}
+            foreach (TorrentManager manager in Engine.Torrents)
+            {
+                 managerTasks.Add(Task.Run(async () =>
+                {
+                    Console.WriteLine($"{manager.Name}	STOPPING	{manager.Files.Count}");
+
+                    var stoppingTask = manager.StopAsync();
+                    while (manager.State != TorrentState.Stopped)
+                    {
+                        Task.WhenAll(stoppingTask, Task.Delay(250)).Wait();
+                    }
+                    stoppingTask.Wait();
+
+                    Console.WriteLine($"{manager.Name}	STOPPED	{manager.Files.Count}");
+                }));
+            }
+
+            Task.WhenAll(managerTasks).Wait();
+        }
 
 		public async Task Worker()
 		{
@@ -268,7 +289,7 @@ namespace dome_bt
 				}
 			}
 
-			Console.WriteLine("Clean Exit.");
+			Console.WriteLine("Asked to stop.");
 		}
 
 	}

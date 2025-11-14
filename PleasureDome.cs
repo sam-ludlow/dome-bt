@@ -9,6 +9,8 @@ namespace dome_bt
 	{
 		public static void ParseMagentLinks()
 		{
+			Tools.ConsoleHeading(1, new string[] { "Pleasuredome Magnet Scrape" });
+
 			if (Globals.Cores.Contains("mame"))
 				ParseMagentLinks("https://pleasuredome.github.io/pleasuredome/mame/index.html",
 					new AssetType[] { AssetType.MachineRom, AssetType.MachineDisk, AssetType.SoftwareRom, AssetType.SoftwareDisk },
@@ -24,7 +26,7 @@ namespace dome_bt
 
 		public static void ParseMagentLinks(string url, AssetType[] assetTypes, List<string> names, Dictionary<AssetType, MagnetInfo> magnets)
 		{
-			Tools.ConsoleHeading(1, new string[] { "Pleasuredome", url });
+			Console.WriteLine(url);
 
 			string html = Tools.FetchCached(url) ?? throw new ApplicationException("Can't fetch HTML");
 
@@ -52,11 +54,12 @@ namespace dome_bt
 				string version = text.Substring(0, index);
 				text = text.Substring(index + 1);
 
-				//Console.WriteLine($"{core}\t{version}\t{text}\t{href}");
-
 				index = names.IndexOf(text);
 				if (index != -1)
+				{
 					magnets.Add(assetTypes[index], new MagnetInfo(node.InnerText, version, href));
+					Console.WriteLine($"\t{assetTypes[index]}\t{node.InnerText}\t{version}");
+				}
 			}
 		}
 	}
