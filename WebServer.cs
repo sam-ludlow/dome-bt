@@ -1,11 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
+using System.Net.Sockets;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
-using System.Linq;
-using System.Collections.Generic;
 
 using MonoTorrent;
 using MonoTorrent.Client;
@@ -40,13 +41,18 @@ namespace dome_bt
 		public void StartListener()
 		{
 			if (HttpListener.IsSupported == false)
-			{
-				Console.WriteLine("!!! Http Listener Is not Supported");
-				return;
-			}
-
+				throw new ApplicationException("Http Listener Is not Supported");
+			
 			HttpListener listener = new HttpListener();
-			listener.Prefixes.Add(Globals.ListenAddress);
+
+			string listenSufix = Globals.ListenAddress.Substring(Globals.ListenAddress.Length - 7);
+
+			if (Socket.OSSupportsIPv4 == true)
+				listener.Prefixes.Add($"http://127.0.0.1{listenSufix}");
+
+			if (Socket.OSSupportsIPv6 == true)
+				listener.Prefixes.Add($"http://[::1]{listenSufix}");
+
 			listener.Start();
 
 			Task listenTask = new Task(() => {
