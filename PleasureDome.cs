@@ -9,16 +9,16 @@ namespace dome_bt
 	{
 		public static void ParseMagentLinks()
 		{
-			Tools.ConsoleHeading(1, new string[] { "Pleasuredome Magnet Scrape" });
+			Tools.ConsoleHeading(1, new string[] { "Magnet Scrape" });
 
 			if (Globals.Cores.Contains("mame"))
-				ParseMagentLinks("https://pleasuredome.github.io/pleasuredome/mame/index.html",
+				ParseMagentLinks("https://data.spludlow.co.uk/magnets/mame.html",
 					new AssetType[] { AssetType.MachineRom, AssetType.MachineDisk, AssetType.SoftwareRom, AssetType.SoftwareDisk },
 					new List<string>(new string[] { "ROMs (merged)", "CHDs (merged)", "Software List ROMs (merged)", "Software List CHDs (merged)" }),
 					Globals.Magnets);
 
 			if (Globals.Cores.Contains("hbmame"))
-				ParseMagentLinks("https://pleasuredome.github.io/pleasuredome/nonmame/hbmame/index.html",
+				ParseMagentLinks("https://data.spludlow.co.uk/magnets/hbmame.html",
 					new AssetType[] { AssetType.HbMameMachineRom, AssetType.HbMameSoftwareRom, },
 					new List<string>(new string[] { "ROMs (merged)", "Software List ROMs (merged)", }),
 					Globals.Magnets);

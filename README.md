@@ -1,5 +1,5 @@
 # dome-bt
-BitTorrent client for Pleasuredome. For use with `MAME-AO`.
+BitTorrent client for use with `MAME-AO`.
 
 ![DOME-BT](https://raw.githubusercontent.com/sam-ludlow/dome-bt/main/images/dome-bt.png)
 

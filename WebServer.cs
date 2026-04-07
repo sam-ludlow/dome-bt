@@ -469,13 +469,9 @@ namespace dome_bt
 
 <h1>DOME-BT</h1>
 
-<p>Welcome to DOME-BT a Bit Torrent client for obtaining MAME assets from the Pleasuredome Torrents.</p>
+<p>Welcome to DOME-BT a Bit Torrent client for obtaining MAME assets from Torrents.</p>
 
 <p><a href=""https://github.com/sam-ludlow/dome-bt"" target=""_blank"" >https://github.com/sam-ludlow/dome-bt</a></p>
-
-<p><a href=""https://pleasuredome.github.io/pleasuredome/mame/index.html"" target=""_blank"" >https://pleasuredome.github.io/pleasuredome/mame/index.html</a></p>
-
-<p><a href=""https://pleasuredome.github.io/pleasuredome/nonmame/hbmame/index.html"" target=""_blank"" >https://pleasuredome.github.io/pleasuredome/nonmame/hbmame/index.html</a></p>
 
 <p>When DOME-BT is running with MAME-AO the assets will be automatically obtained from Bit Torrents rather than using archive.org</p>
 
