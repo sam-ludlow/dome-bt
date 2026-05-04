@@ -64,6 +64,8 @@ namespace dome_bt
 				MaximumConnections = Globals.Magnets.Count * MaximumConnectionsPerTorrent,
 				MaximumDownloadRate = (int)(MaximumDownloadRate * MegaBitsToBytes),
 				MaximumUploadRate = (int)(MaximumUploadRate * MegaBitsToBytes),
+
+				MaximumHalfOpenConnections = 16,
 			};
 
             Tools.ConsoleHeading(1, new string[] { "Engine Settings", "(0 = No limit)" });
@@ -182,29 +184,25 @@ namespace dome_bt
 			//
 			// Setup Torrents
 			//
-			Tools.ConsoleHeading(1, $"Start Torrents");
-
-			List<Task> managerTasks = new List<Task>();
+			Tools.ConsoleHeading(1, new string[] { "Start Torrents", "", "Please allow time for metadata to download on first use. It will be quick next time." });
 
 			foreach (TorrentManager manager in Engine.Torrents)
 			{
 				string name = manager.Name.PadRight(pad);
 
-				managerTasks.Add(Task.Run(async () =>
+				Console.WriteLine($"{name}	Start TorrentManager	{manager.Files.Count}");
+
+				if (manager.HasMetadata == false)
 				{
-					Console.WriteLine($"{name}	START	{manager.Files.Count}");
-
-					if (manager.Files.Count == 0)
-					{
-						await manager.StartAsync();
-						await manager.WaitForMetadataAsync();
-						await manager.StopAsync();
-					}
-
-					Console.WriteLine($"{name}	META	{manager.Files.Count}	{manager.Files[0].Priority}");
+					Console.WriteLine($"{name}	Wait Metadata");
+					await manager.StartAsync();
+					await manager.WaitForMetadataAsync();
+					await manager.StopAsync();
+					Console.WriteLine($"{name}	Have Metadata	{manager.Files.Count}	{manager.Files[0].Priority}");
 
 					if (manager.Files[0].Priority == Priority.Normal)
 					{
+						Console.WriteLine($"{name}	WARNING having to set File Priority please wait (Using standard MonoTorrent).");
 						int count = 0;
 						foreach (var file in manager.Files)
 						{
@@ -214,22 +212,20 @@ namespace dome_bt
 								Console.WriteLine($"{name}	{count}/{manager.Files.Count}");
 						}
 					}
+				}
 
-					await manager.StartAsync();
-					
-					string hex = manager.MagnetLink.InfoHashes.V1OrV2.ToHex();
+				await manager.StartAsync();
 
-					if (hex == null || hex.Length != 40)
-						throw new ApplicationException($"Bad Hash HashChecked:{manager.HashChecked}");
+				string hex = manager.MagnetLink.InfoHashes.V1OrV2.ToHex();
 
-					lock (_Lock)
-						TorrentManagers.Add(hex, manager);
+				if (hex == null || hex.Length != 40)
+					throw new ApplicationException($"Bad Hash HashChecked:{manager.HashChecked}");
 
-					Console.WriteLine($"{name}	READY	{manager.Files.Count}");
-				}));
+				lock (_Lock)
+					TorrentManagers.Add(hex, manager);
+
+				Console.WriteLine($"{name}	READY	{hex}");
 			}
-
-			await Task.WhenAll(managerTasks);
 
 			//
 			// Clear old torrent cache files
