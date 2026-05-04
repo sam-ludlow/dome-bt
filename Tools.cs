@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.IO.Compression;
 using System.Text;
 using System.Threading.Tasks;
 using System.Net.Http;
@@ -118,6 +119,13 @@ namespace dome_bt
 			{
 				throw e.InnerException ?? e;
 			}
+		}
+
+		public static void CompressSingleFile(string filename, string zipFilename)
+		{
+			using (var fileStream = new FileStream(zipFilename, FileMode.Create))
+				using (var zipArchive = new ZipArchive(fileStream, ZipArchiveMode.Create))
+					zipArchive.CreateEntryFromFile(filename, Path.GetFileName(filename));
 		}
 
 		private static readonly List<char> _InvalidFileNameChars = new List<char>(Path.GetInvalidFileNameChars());

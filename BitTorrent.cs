@@ -131,6 +131,71 @@ namespace dome_bt
             Task.WhenAll(managerTasks).Wait();
         }
 
+		public async Task Convert(string targetDirectory)
+		{
+			foreach (AssetType assetType in Globals.Magnets.Keys)
+			{
+				MagnetInfo magnetInfo = Globals.Magnets[assetType];
+
+				Console.WriteLine(magnetInfo.Name);
+
+				await AddMagnet(assetType, magnetInfo);
+
+				if (magnetInfo.TorrentManager.HasMetadata == false)
+				{
+					Console.Write("Wait For Metadata...");
+					await magnetInfo.TorrentManager.StartAsync();
+					await magnetInfo.TorrentManager.WaitForMetadataAsync();
+					await magnetInfo.TorrentManager.StopAsync();
+					Console.WriteLine("...done.");
+				}
+			}
+
+			Console.Write("Stopping...");
+			await Globals.BitTorrent.Engine.StopAllAsync();
+			Console.WriteLine("...done.");
+
+			foreach (AssetType assetType in Globals.Magnets.Keys)
+			{
+				MagnetInfo magnetInfo = Globals.Magnets[assetType];
+
+				string sourceFilename = Path.Combine(Globals.DirectoryCache, "metadata", magnetInfo.Hash + ".torrent");
+
+				Directory.CreateDirectory(targetDirectory);
+				string torrentFilename = Path.Combine(targetDirectory, $"{magnetInfo.Hash}_{magnetInfo.Name}.torrent");
+
+				File.Copy(sourceFilename, torrentFilename, true);
+
+				Console.WriteLine($"{sourceFilename}	=>	{torrentFilename}");
+
+				string torrentZipFilename = torrentFilename + ".zip";
+				File.Delete(torrentZipFilename);
+				Tools.CompressSingleFile(torrentFilename, torrentZipFilename);
+
+				File.WriteAllText(torrentFilename + ".base64", System.Convert.ToBase64String(File.ReadAllBytes(torrentFilename)), System.Text.Encoding.ASCII);
+				File.WriteAllText(torrentZipFilename + ".base64", System.Convert.ToBase64String(File.ReadAllBytes(torrentZipFilename)), System.Text.Encoding.ASCII);
+			}
+		}
+
+		public async Task AddMagnet(AssetType assetType, MagnetInfo magnetInfo)
+		{
+			MagnetLink magnetLink;
+			if (MagnetLink.TryParse(magnetInfo.Magnet, out magnetLink) == false)
+				throw new ApplicationException($"Bad magnet link: {magnetInfo.Magnet}");
+
+			magnetInfo.MagnetLink = magnetLink;
+
+			var torrentSettings = new TorrentSettingsBuilder
+			{
+				MaximumConnections = MaximumConnectionsPerTorrent,
+			};
+
+			magnetInfo.TorrentManager = await Engine.AddAsync(magnetLink, Globals.DirectoryDownloads, torrentSettings.ToSettings());
+			magnetInfo.Hash = magnetLink.InfoHashes.V1OrV2.ToHex();
+
+			Console.WriteLine($"{assetType}	{magnetInfo.Version}	{magnetInfo.Name}	{magnetInfo.Hash}");
+		}
+
 		public async Task Worker()
 		{
 			int pad = 0;
@@ -162,21 +227,7 @@ namespace dome_bt
 			{
 				MagnetInfo magnetInfo = Globals.Magnets[assetType];
 
-				MagnetLink magnetLink;
-				if (MagnetLink.TryParse(magnetInfo.Magnet, out magnetLink) == false)
-					throw new ApplicationException($"Bad magnet link: {magnetInfo.Magnet}");
-
-				magnetInfo.MagnetLink = magnetLink;
-
-				var torrentSettings = new TorrentSettingsBuilder
-				{
-					MaximumConnections = MaximumConnectionsPerTorrent,
-				};
-
-				magnetInfo.TorrentManager = await Engine.AddAsync(magnetLink, Globals.DirectoryDownloads, torrentSettings.ToSettings());
-				magnetInfo.Hash = magnetLink.InfoHashes.V1OrV2.ToHex();
-
-				Console.WriteLine($"{assetType}	{magnetInfo.Version}	{magnetInfo.Name}	{magnetInfo.Hash}");
+				await AddMagnet(assetType, magnetInfo);
 
 				pad = Math.Max(pad, magnetInfo.Name.Length);
 			}

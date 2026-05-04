@@ -102,7 +102,7 @@ $$$$$$$  | $$$$$$  |$$ | \_/ $$ |$$$$$$$$\       $$$$$$$  |  $$ |
 
 ";
 
-		public void Run()
+		public int Run()
 		{
 			Console.Title = $"DOME-BT {Globals.AssemblyVersion}";
 
@@ -142,6 +142,21 @@ $$$$$$$  | $$$$$$  |$$ | \_/ $$ |$$$$$$$$\       $$$$$$$  |  $$ |
 			Globals.BitTorrent = new BitTorrent();
 			Globals.BitTorrent.Run();
 
+			return 0;
+		}
+
+		public int Convert(Dictionary<string, string> arguments)
+		{
+			Globals.Cores = new List<string>(new string[] { "mame", "hbmame" });
+
+			PleasureDome.ParseMagentLinks();
+
+			Globals.BitTorrent = new BitTorrent();
+
+			var task = Globals.BitTorrent.Convert(arguments["target"]);
+			task.Wait();
+
+			return 0;
 		}
 	}
 }

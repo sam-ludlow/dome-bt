@@ -1,11 +1,45 @@
-﻿namespace dome_bt
+﻿using System;
+using System.Collections.Generic;
+
+namespace dome_bt
 {
 	internal class Program
 	{
-		static void Main(string[] args)
+		static int Main(string[] args)
 		{
+			//args = new string[] { "convert", @"target=C:\ao-data\torrents" };
+
+			if (args.Length > 0 && args[0].Contains("=") == false)
+				args[0] = $"operation={args[0]}";
+
+			Dictionary<string, string> arguments = new Dictionary<string, string>();
+
+			foreach (string arg in args)
+			{
+				int index = arg.IndexOf('=');
+				if (index == -1)
+					throw new ApplicationException($"Bad argument, expecting key=value: {arg}");
+
+				arguments.Add(arg.Substring(0, index).ToLower().Trim(), arg.Substring(index + 1).Trim());
+			}
+
 			Processor processor = new Processor();
-			processor.Run();
+
+			if (arguments.ContainsKey("operation") == true)
+			{
+				switch (arguments["operation"])
+				{
+					case "convert":
+						return processor.Convert(arguments);
+
+					default:
+						throw new ApplicationException($"Unknown operation: {arguments["operation"]}");
+				}
+			}
+			else
+			{
+				return processor.Run();
+			}
 		}
 	}
 }
