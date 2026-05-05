@@ -7,8 +7,6 @@ namespace dome_bt
 	{
 		static int Main(string[] args)
 		{
-			//args = new string[] { "convert", @"target=C:\ao-data\torrents" };
-
 			if (args.Length > 0 && args[0].Contains("=") == false)
 				args[0] = $"operation={args[0]}";
 

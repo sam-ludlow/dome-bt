@@ -8,6 +8,8 @@ using System.IO;
 using MonoTorrent.Client;
 using MonoTorrent;
 
+using Newtonsoft.Json.Linq;
+
 namespace dome_bt
 {
 	public class BitTorrent
@@ -155,25 +157,45 @@ namespace dome_bt
 			await Globals.BitTorrent.Engine.StopAllAsync();
 			Console.WriteLine("...done.");
 
-			foreach (AssetType assetType in Globals.Magnets.Keys)
+			Dictionary<string, AssetType[]> coreTypes = new Dictionary<string, AssetType[]>()
 			{
-				MagnetInfo magnetInfo = Globals.Magnets[assetType];
+				{ "mame", new AssetType[] { AssetType.MachineRom, AssetType.MachineDisk, AssetType.SoftwareRom, AssetType.SoftwareDisk } },
+				{ "hbmame", new AssetType[] { AssetType.HbMameMachineRom, AssetType.HbMameSoftwareRom } },
+			};
 
-				string sourceFilename = Path.Combine(Globals.DirectoryCache, "metadata", magnetInfo.Hash + ".torrent");
+			Directory.CreateDirectory(targetDirectory);
 
-				Directory.CreateDirectory(targetDirectory);
-				string torrentFilename = Path.Combine(targetDirectory, $"{magnetInfo.Hash}_{magnetInfo.Name}.torrent");
+			foreach (string core in coreTypes.Keys)
+			{
+				var array = new JArray();
 
-				File.Copy(sourceFilename, torrentFilename, true);
+				foreach (AssetType assetType in coreTypes[core])
+				{
+					MagnetInfo magnetInfo = Globals.Magnets[assetType];
 
-				Console.WriteLine($"{sourceFilename}	=>	{torrentFilename}");
+					Console.WriteLine($"{assetType}\t{magnetInfo.Name}\t{magnetInfo.Hash}\t{magnetInfo.Magnet}");
 
-				string torrentZipFilename = torrentFilename + ".zip";
-				File.Delete(torrentZipFilename);
-				Tools.CompressSingleFile(torrentFilename, torrentZipFilename);
+					string sourceFilename = Path.Combine(Globals.DirectoryCache, "metadata", magnetInfo.Hash + ".torrent");
+					
+					string zipFilename = Path.Combine(targetDirectory, $"{magnetInfo.Hash}.torrent.zip");
+					File.Delete(zipFilename);
+					Tools.CompressSingleFile(sourceFilename, zipFilename);
 
-				File.WriteAllText(torrentFilename + ".base64", System.Convert.ToBase64String(File.ReadAllBytes(torrentFilename)), System.Text.Encoding.ASCII);
-				File.WriteAllText(torrentZipFilename + ".base64", System.Convert.ToBase64String(File.ReadAllBytes(torrentZipFilename)), System.Text.Encoding.ASCII);
+					dynamic json = new JObject();
+
+					json.name = magnetInfo.Name;
+					json.hash = magnetInfo.Hash;
+					json.magnet = magnetInfo.Magnet;
+					json.torrent = System.Convert.ToBase64String(File.ReadAllBytes(zipFilename));
+
+					array.Add(json);
+
+					File.Delete(zipFilename);
+				}
+
+				string targetFilename = Path.Combine(targetDirectory, core + ".json");
+				File.Delete(targetFilename);
+				File.WriteAllText(targetFilename, array.ToString());
 			}
 		}
 
