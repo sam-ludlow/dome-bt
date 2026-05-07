@@ -133,9 +133,6 @@ $$$$$$$  | $$$$$$  |$$ | \_/ $$ |$$$$$$$$\       $$$$$$$  |  $$ |
 				Globals.Cores.Add("mame");
 			}
 
-
-			PleasureDome.ParseMagentLinks();
-
 			WebServer webServer = new WebServer();
 			webServer.StartListener();
 

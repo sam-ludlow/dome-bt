@@ -1,13 +1,15 @@
 ﻿using System;
-using System.Net;
-using System.Threading.Tasks;
 using System.Collections.Generic;
-using System.Linq;
 using System.IO;
+using System.IO.Compression;
+using System.Linq;
+using System.Net;
+using System.Security.Cryptography;
+using System.Threading.Tasks;
 
-using MonoTorrent.Client;
 using MonoTorrent;
-
+using MonoTorrent.Client;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace dome_bt
@@ -29,7 +31,11 @@ namespace dome_bt
 		private double MaximumUploadRate = 0;
 
 
-        public BitTorrent()
+		public BitTorrent()
+		{
+		}
+
+		private void Setup(int count)
 		{
 			if (Globals.Config.ContainsKey("maximum-connections-per-torrent") == true)
 				MaximumConnectionsPerTorrent = Int32.Parse(Globals.Config["maximum-connections-per-torrent"]);
@@ -40,15 +46,15 @@ namespace dome_bt
 			if (Globals.Config.ContainsKey("maximum-upload-rate-mbps") == true)
 				MaximumUploadRate = Double.Parse(Globals.Config["maximum-upload-rate-mbps"]);
 
-            //
-            // Setup Engine
-            //
-            int portNumber = 55123;
+			//
+			// Setup Engine
+			//
+			int portNumber = 55123;
 
 			var engineSettings = new EngineSettingsBuilder
 			{
 				AllowPortForwarding = true,
-
+				AllowLocalPeerDiscovery = false,
 				AutoSaveLoadDhtCache = true,
 				AutoSaveLoadFastResume = true,
 				AutoSaveLoadMagnetLinkMetadata = true,
@@ -56,27 +62,28 @@ namespace dome_bt
 
 				CacheDirectory = Globals.DirectoryCache,
 
-				ListenEndPoints = new Dictionary<string, IPEndPoint> {
+				ListenEndPoints = new Dictionary<string, IPEndPoint>() {
 					{ "ipv4", new IPEndPoint (IPAddress.Any, portNumber) },
 					{ "ipv6", new IPEndPoint (IPAddress.IPv6Any, portNumber) }
 				},
 
 				DhtEndPoint = new IPEndPoint(IPAddress.Any, portNumber),
 
-				MaximumConnections = Globals.Magnets.Count * MaximumConnectionsPerTorrent,
+				MaximumConnections = count * MaximumConnectionsPerTorrent,
 				MaximumDownloadRate = (int)(MaximumDownloadRate * MegaBitsToBytes),
 				MaximumUploadRate = (int)(MaximumUploadRate * MegaBitsToBytes),
 
 				MaximumHalfOpenConnections = 16,
 			};
 
-            Tools.ConsoleHeading(1, new string[] { "Engine Settings", "(0 = No limit)" });
+			Tools.ConsoleHeading(1, new string[] { "Engine Settings", "(0 = No limit)" });
 
-			Console.WriteLine($"Maximum Connections   :{engineSettings.MaximumConnections} (Magnets:{Globals.Magnets.Count} X Max Per Torrent: {MaximumConnectionsPerTorrent})");
+			Console.WriteLine($"Maximum Connections   :{engineSettings.MaximumConnections} (Magnets:{count} X Max Per Torrent: {MaximumConnectionsPerTorrent})");
 			Console.WriteLine($"Maximum Download Rate : {engineSettings.MaximumDownloadRate} B/s ({MaximumDownloadRate} Mbit/s)");
 			Console.WriteLine($"Maximum Upload Rate   : {engineSettings.MaximumUploadRate} B/s ({MaximumUploadRate} Mbit/s)");
 
             Engine = new ClientEngine(engineSettings.ToSettings());
+
 		}
 
 		public void Run()
@@ -218,17 +225,139 @@ namespace dome_bt
 			Console.WriteLine($"{assetType}	{magnetInfo.Version}	{magnetInfo.Name}	{magnetInfo.Hash}");
 		}
 
+		private static readonly string MagnetKey = "RRt08v+YWc2+910RGOhZO7DrNVnHKae8MDJyJNOd950=";
+
 		public async Task Worker()
 		{
 			int pad = 0;
 
 			//
+			// Download torrents
+			//
+			Tools.ConsoleHeading(1, new string[] { "Obtain Torrents" });
+
+			var torrents = new Dictionary<AssetType, Torrent>();
+
+			foreach (string core in Globals.Cores)
+			{
+				AssetType[] assetTypes;
+				List<string> names;
+
+				switch (core)
+				{
+					case "mame":
+						assetTypes = new AssetType[] { AssetType.MachineRom, AssetType.MachineDisk, AssetType.SoftwareRom, AssetType.SoftwareDisk };
+						names = new List<string>(new string[] { "ROMs (merged)", "CHDs (merged)", "Software List ROMs (merged)", "Software List CHDs (merged)" });
+						break;
+
+					case "hbmame":
+						assetTypes = new AssetType[] { AssetType.HbMameMachineRom, AssetType.HbMameSoftwareRom };
+						names = new List<string>(new string[] { "ROMs (merged)", "Software List ROMs (merged)" });
+						break;
+
+					default:
+						throw new ApplicationException($"Unknown core: {core}");
+				}
+				string url = $"https://data.spludlow.co.uk/api/torrents/{core}";
+
+				dynamic json = JsonConvert.DeserializeObject<dynamic>(Tools.FetchCached(url) ?? throw new ApplicationException("Can't fetch Torrents"));
+
+				string body;
+				using (var aes = Aes.Create())
+				{
+					aes.Key = System.Convert.FromBase64String(MagnetKey);
+					aes.IV = System.Convert.FromBase64String((string)json.iv);
+					aes.Mode = CipherMode.CBC;
+					aes.Padding = PaddingMode.PKCS7;
+
+					using (var decryptor = aes.CreateDecryptor())
+						using (var stream = new MemoryStream(System.Convert.FromBase64String((string)json.body)))
+							using (var cryStream = new CryptoStream(stream, decryptor, CryptoStreamMode.Read))
+								using (var reader = new StreamReader(cryStream))
+									body = reader.ReadToEnd();
+				}
+
+				foreach (dynamic item in JArray.Parse(body))
+				{
+					Torrent torrent;
+					using (var targetStream = new MemoryStream())
+					{
+						using (var sourceStream = new MemoryStream(System.Convert.FromBase64String((string)item.torrent)))
+							using (var zipArchive = new ZipArchive(sourceStream))
+								using (var zipStream = zipArchive.Entries[0].Open())
+									zipStream.CopyTo(targetStream);
+
+
+						targetStream.Position = 0;
+						torrent = Torrent.Load(targetStream);
+					}
+
+					string text = item.name;
+					int index;
+
+					index = text.IndexOf(' ');
+					text = text.Substring(index + 1);
+
+					index = text.IndexOf(' ');
+					string version = text.Substring(0, index);
+					text = text.Substring(index + 1);
+
+					index = names.IndexOf(text);
+					if (index != -1)
+					{
+						string magnet = item.magnet;
+
+						AssetType assetType = assetTypes[index];
+						Globals.Magnets.Add(assetType, new MagnetInfo((string)item.name, version, magnet));
+						torrents.Add(assetType, torrent);
+						Console.WriteLine($"{core}\t{assetType}\t{version}\t{text}");
+					}
+				}
+			}
+
+			//
+			// Setup Engine - TODO combine with Start
+			//
+			Setup(torrents.Count);
+
+			Tools.ConsoleHeading(1, new string[] { "Setup Torrents" });
+			//
+			// Setup Magnets - TODO dont need magnets any more
+			//
+			foreach (AssetType assetType in Globals.Magnets.Keys)
+			{
+				MagnetInfo magnetInfo = Globals.Magnets[assetType];
+				Torrent torrent = torrents[assetType];
+
+				magnetInfo.MagnetLink = MagnetLink.Parse(magnetInfo.Magnet);
+				magnetInfo.Hash = magnetInfo.MagnetLink.InfoHashes.V1OrV2.ToHex();
+
+				var torrentSettings = new TorrentSettingsBuilder
+				{
+					MaximumConnections = MaximumConnectionsPerTorrent,
+					AllowPeerExchange = true,
+					AllowDht = true,
+				};
+
+				//	TODO Use either ....
+				//magnetInfo.TorrentManager = await Engine.AddAsync(magnetInfo.MagnetLink, Globals.DirectoryDownloads, torrentSettings.ToSettings());
+
+				Console.Write($"{magnetInfo.Name} ...");
+				magnetInfo.TorrentManager = await Engine.AddAsync(torrent, Globals.DirectoryDownloads, torrentSettings.ToSettings());
+				Console.WriteLine("...done");
+
+				pad = Math.Max(pad, magnetInfo.Name.Length);
+			}
+
+			Tools.ConsoleHeading(1, new string[] { "Starting Torrents" });
+
+			//
 			// Clear old directories
 			//
-			List<string> currentNames = new List<string>(Globals.Magnets.Values.Select(info => info.Name));
-
 			if (Directory.Exists(Globals.DirectoryDownloads) == true)
 			{
+				List<string> currentNames = new List<string>(Globals.Magnets.Values.Select(info => info.Name));
+
 				foreach (string directory in Directory.GetDirectories(Globals.DirectoryDownloads))
 				{
 					if (currentNames.Contains(Path.GetFileName(directory), StringComparer.OrdinalIgnoreCase) == false)
@@ -241,63 +370,32 @@ namespace dome_bt
 			}
 
 			//
-			// Add Magnets
+			// Start Torrents
 			//
-			Tools.ConsoleHeading(1, $"Add Magnets");
-
-			foreach (AssetType assetType in Globals.Magnets.Keys)
-			{
-				MagnetInfo magnetInfo = Globals.Magnets[assetType];
-
-				await AddMagnet(assetType, magnetInfo);
-
-				pad = Math.Max(pad, magnetInfo.Name.Length);
-			}
-
-			//
-			// Setup Torrents
-			//
-			Tools.ConsoleHeading(1, new string[] { "Start Torrents", "", "Please allow time for metadata to download on first use. It will be quick next time." });
-
 			foreach (TorrentManager manager in Engine.Torrents)
 			{
 				string name = manager.Name.PadRight(pad);
 
-				Console.WriteLine($"{name}	Start TorrentManager	{manager.Files.Count}");
+				Console.WriteLine($"{name}	Starting	{manager.Files.Count}");
+
+				await manager.StartAsync();
 
 				if (manager.HasMetadata == false)
 				{
-					Console.WriteLine($"{name}	Wait Metadata");
-					await manager.StartAsync();
+					Console.WriteLine($"{name}	Waiting for Metadata");
 					await manager.WaitForMetadataAsync();
-					await manager.StopAsync();
-					Console.WriteLine($"{name}	Have Metadata	{manager.Files.Count}	{manager.Files[0].Priority}");
-
-					if (manager.Files[0].Priority == Priority.Normal)
-					{
-						Console.WriteLine($"{name}	WARNING having to set File Priority please wait (Using standard MonoTorrent).");
-						int count = 0;
-						foreach (var file in manager.Files)
-						{
-							await manager.SetFilePriorityAsync(file, Priority.DoNotDownload);
-
-							if (++count % 1000 == 0)
-								Console.WriteLine($"{name}	{count}/{manager.Files.Count}");
-						}
-					}
+					Console.WriteLine($"{name}	Metadata	{manager.Files.Count}	{manager.Files[0].Priority}");
 				}
-
-				await manager.StartAsync();
 
 				string hex = manager.MagnetLink.InfoHashes.V1OrV2.ToHex();
 
 				if (hex == null || hex.Length != 40)
-					throw new ApplicationException($"Bad Hash HashChecked:{manager.HashChecked}");
+					throw new ApplicationException($"{name} Bad Hash HashChecked:{manager.HashChecked}");
 
 				lock (_Lock)
 					TorrentManagers.Add(hex, manager);
 
-				Console.WriteLine($"{name}	READY	{hex}");
+				Console.WriteLine($"{name}	Ready	{hex}");
 			}
 
 			//
@@ -360,6 +458,5 @@ namespace dome_bt
 
 			Console.WriteLine("Asked to stop.");
 		}
-
 	}
 }

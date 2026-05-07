@@ -57,6 +57,10 @@
     <Reference Include="MonoTorrent">
       <HintPath>..\monotorrent\src\MonoTorrent.Client\bin\Release\net472\MonoTorrent.dll</HintPath>
     </Reference>
+    <Reference Include="MonoTorrent.BEncoding, Version=2.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\monotorrent\src\MonoTorrent.BEncoding\bin\Release\net472\MonoTorrent.BEncoding.dll</HintPath>
+    </Reference>
     <Reference Include="MonoTorrent.Client">
       <HintPath>..\monotorrent\src\MonoTorrent.Client\bin\Release\net472\MonoTorrent.Client.dll</HintPath>
     </Reference>
@@ -67,6 +71,10 @@
     <Reference Include="System.Core" />
     <Reference Include="System.IO.Compression" />
     <Reference Include="System.IO.Compression.FileSystem" />
+    <Reference Include="System.Memory, Version=4.0.5.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\monotorrent\src\MonoTorrent.BEncoding\bin\Release\net472\System.Memory.dll</HintPath>
+    </Reference>
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
