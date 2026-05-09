@@ -160,8 +160,6 @@ namespace dome_bt
 
 		public void _api_info(HttpListenerContext context, StreamWriter writer)
 		{
-			//	http://localhost:12381/api/info
-
 			ClientEngine engine = Globals.BitTorrent.Engine;
 
 			dynamic json = new JObject();
@@ -212,32 +210,10 @@ namespace dome_bt
 			json.priorities = new JArray(Enum.GetNames(typeof(Priority)));
 
 			//
-			// Magnets
+			// Magnets	TODO: Depreachiate
 			//
 
 			dynamic magnets = new JArray();
-			foreach (AssetType magnetType in Globals.Magnets.Keys)
-			{
-				MagnetInfo info = Globals.Magnets[magnetType];
-
-				dynamic result = new JObject();
-
-				result.type = magnetType.ToString();
-				result.name = info.Name;
-				result.version = info.Version;
-				result.hash = info.Hash;
-				result.magnet_link = info.Magnet;
-
-				result.torrent_available = info.TorrentManager != null ? true : false;
-
-				if (info.MagnetLink != null)
-				{
-					result.announce_urls = new JArray(info.MagnetLink.AnnounceUrls);
-					result.webseeds = new JArray(info.MagnetLink.Webseeds);
-				}
-
-				magnets.Add(result);
-			}
 			json.magnets = magnets;
 
 			//
@@ -335,13 +311,8 @@ namespace dome_bt
 			string priority = context.Request.QueryString["priority"];
 
 			TorrentManager manager;
-			lock (Globals.BitTorrent._Lock)
-			{
-				if (Globals.BitTorrent.TorrentManagers.ContainsKey(hash) == false)
-					throw new ApplicationException("hash not found");
-
-				manager = Globals.BitTorrent.TorrentManagers[hash];
-			}
+			lock (Globals.TorrentInfos)
+				manager = Globals.TorrentInfos.Where(x => x.Hash == hash).Single().TorrentManager;
 
 			var managerFiles = manager.Files;
 			if (priority != null)
@@ -386,35 +357,35 @@ namespace dome_bt
 			if (parameters.ContainsKey("core") == false)
 				parameters.Add("core", "mame");
 
-			bool isMame = parameters["core"] == "mame";	//	else HBMAME for now
-
-			AssetType type;
+			string core = parameters["core"];
+			
+			string type;
 			string path;
 
 			if (parameters.Count == 2 && parameters.ContainsKey("machine"))
 			{
-				type = isMame ? AssetType.MachineRom : AssetType.HbMameMachineRom;
+				type = "mr";
 				path = parameters["machine"] + ".zip";
 			}
 			else
 			{
 				if (parameters.Count == 3 && parameters.ContainsKey("machine") && parameters.ContainsKey("disk"))
 				{
-					type = AssetType.MachineDisk;
+					type = "md";
 					path = Path.Combine(parameters["machine"], parameters["disk"] + ".chd");
 				}
 				else
 				{
 					if (parameters.Count == 3 && parameters.ContainsKey("list") && parameters.ContainsKey("software"))
 					{
-						type = isMame ? AssetType.SoftwareRom : AssetType.HbMameSoftwareRom;
+						type = "sr";
 						path = Path.Combine(parameters["list"], parameters["software"] + ".zip");
 					}
 					else
 					{
 						if (parameters.Count == 4 && parameters.ContainsKey("list") && parameters.ContainsKey("software") && parameters.ContainsKey("disk"))
 						{
-							type = AssetType.SoftwareDisk;
+							type = "sd";
 							path = Path.Combine(parameters["list"], parameters["software"], parameters["disk"] + ".chd");
 						}
 						else
@@ -425,9 +396,9 @@ namespace dome_bt
 				}
 			}
 
-			TorrentManager manager = Globals.Magnets[type].TorrentManager ?? throw new ApplicationException("Torrent Manager Not available");
-
-			// TODO: May be threading issues here (very intermittant)
+			TorrentManager manager;
+			lock (Globals.TorrentInfos)
+				manager = Globals.TorrentInfos.Where(x => x.Core == core && x.Type == type).Single().TorrentManager;
 
 			IEnumerable<ITorrentManagerFile> files = manager.Files.Where(f => f.Path == path);
 

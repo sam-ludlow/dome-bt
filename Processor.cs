@@ -14,16 +14,6 @@ using Newtonsoft.Json.Linq;
 
 namespace dome_bt
 {
-	public enum AssetType
-	{
-		MachineRom,
-		MachineDisk,
-		SoftwareRom,
-		SoftwareDisk,
-		HbMameMachineRom,
-		HbMameSoftwareRom,
-	}
-
 	public class MagnetInfo
 	{
 		public MagnetInfo(string name, string version, string magnet, string type)
@@ -38,10 +28,30 @@ namespace dome_bt
 		public string Magnet;
 		public string Type;
 		public string Hash;
-		public MagnetLink MagnetLink;
 
+		public MagnetLink MagnetLink;
+	}
+
+	public class TorrentInfo
+	{
+		public TorrentInfo(string core, string type, string name, string version, string hash)
+		{
+			Core = core;
+			Type = type;
+			Name = name;
+			Version = version;
+			Hash = hash;
+		}
+		public string Core;
+		public string Type;
+		public string Name;
+		public string Version;
+		public string Hash;
+
+		public Torrent Torrent;
 		public TorrentManager TorrentManager;
 	}
+
 
 
 	public class Globals
@@ -54,7 +64,7 @@ namespace dome_bt
 		public static string DirectoryCache;
 		public static string DirectoryDownloads;
 
-		public static Dictionary<AssetType, MagnetInfo> Magnets = new Dictionary<AssetType, MagnetInfo>();
+		public static List<TorrentInfo> TorrentInfos = new List<TorrentInfo>();
 
 		public static string ListenAddress = "http://localhost:12381/";
 
@@ -68,6 +78,14 @@ namespace dome_bt
 		public static List<string> Cores = new List<string>();
 
 		public static Dictionary<string, string> Config = new Dictionary<string, string>();
+
+		public static Dictionary<string, string> NameTypeLookup = new Dictionary<string, string>()
+		{
+			{ "ROMs (merged)", "mr" },
+			{ "CHDs (merged)", "md" },
+			{ "Software List ROMs (merged)", "sr" },
+			{ "Software List CHDs (merged)", "sd" },
+		};
 
 		static Globals()
 		{

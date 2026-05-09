@@ -18,10 +18,6 @@ namespace dome_bt
 	{
 		public ClientEngine Engine;
 
-		public Dictionary<string, TorrentManager> TorrentManagers = new Dictionary<string, TorrentManager>();
-
-		public object _Lock = new object();
-
 		public bool AskStop = false;
 
 		private int MaximumConnectionsPerTorrent = 100;
@@ -124,29 +120,12 @@ namespace dome_bt
 
 		public void ShutDown()
 		{
-            Tools.ConsoleHeading(1, $"Shutting down...");
+            Tools.ConsoleHeading(1, $"Shutdown");
 
-            List<Task> managerTasks = new List<Task>();
-
-            foreach (TorrentManager manager in Engine.Torrents)
-            {
-                 managerTasks.Add(Task.Run(async () =>
-                {
-                    Console.WriteLine($"{manager.Name}	STOPPING	{manager.Files.Count}");
-
-                    var stoppingTask = manager.StopAsync();
-                    while (manager.State != TorrentState.Stopped)
-                    {
-                        Task.WhenAll(stoppingTask, Task.Delay(250)).Wait();
-                    }
-                    stoppingTask.Wait();
-
-                    Console.WriteLine($"{manager.Name}	STOPPED	{manager.Files.Count}");
-                }));
-            }
-
-            Task.WhenAll(managerTasks).Wait();
-        }
+			Console.Write("stop engine ...");
+			Engine.StopAllAsync().GetAwaiter().GetResult();
+			Console.WriteLine("...done");
+		}
 
 		private static readonly string MagnetKey = "RRt08v+YWc2+910RGOhZO7DrNVnHKae8MDJyJNOd950=";
 
@@ -159,28 +138,10 @@ namespace dome_bt
 			//
 			Tools.ConsoleHeading(1, new string[] { "Obtain Torrents" });
 
-			var torrents = new Dictionary<AssetType, Torrent>();
+			List<TorrentInfo> torrentInfos = new List<TorrentInfo>();
 
 			foreach (string core in Globals.Cores)
 			{
-				AssetType[] assetTypes;
-				List<string> names;
-
-				switch (core)
-				{
-					case "mame":
-						assetTypes = new AssetType[] { AssetType.MachineRom, AssetType.MachineDisk, AssetType.SoftwareRom, AssetType.SoftwareDisk };
-						names = new List<string>(new string[] { "ROMs (merged)", "CHDs (merged)", "Software List ROMs (merged)", "Software List CHDs (merged)" });
-						break;
-
-					case "hbmame":
-						assetTypes = new AssetType[] { AssetType.HbMameMachineRom, AssetType.HbMameSoftwareRom };
-						names = new List<string>(new string[] { "ROMs (merged)", "Software List ROMs (merged)" });
-						break;
-
-					default:
-						throw new ApplicationException($"Unknown core: {core}");
-				}
 				string url = $"https://data.spludlow.co.uk/api/torrents/{core}";
 
 				dynamic json = JsonConvert.DeserializeObject<dynamic>(Tools.FetchCached(url) ?? throw new ApplicationException("Can't fetch Torrents"));
@@ -194,10 +155,10 @@ namespace dome_bt
 					aes.Padding = PaddingMode.PKCS7;
 
 					using (var decryptor = aes.CreateDecryptor())
-						using (var stream = new MemoryStream(System.Convert.FromBase64String((string)json.body)))
-							using (var cryStream = new CryptoStream(stream, decryptor, CryptoStreamMode.Read))
-								using (var reader = new StreamReader(cryStream))
-									body = reader.ReadToEnd();
+					using (var stream = new MemoryStream(System.Convert.FromBase64String((string)json.body)))
+					using (var cryStream = new CryptoStream(stream, decryptor, CryptoStreamMode.Read))
+					using (var reader = new StreamReader(cryStream))
+						body = reader.ReadToEnd();
 				}
 
 				foreach (dynamic item in JArray.Parse(body))
@@ -206,80 +167,57 @@ namespace dome_bt
 					using (var targetStream = new MemoryStream())
 					{
 						using (var sourceStream = new MemoryStream(System.Convert.FromBase64String((string)item.torrent)))
-							using (var zipArchive = new ZipArchive(sourceStream))
-								using (var zipStream = zipArchive.Entries[0].Open())
-									zipStream.CopyTo(targetStream);
+						using (var zipArchive = new ZipArchive(sourceStream))
+						using (var zipStream = zipArchive.Entries[0].Open())
+							zipStream.CopyTo(targetStream);
 
 
 						targetStream.Position = 0;
 						torrent = Torrent.Load(targetStream);
 					}
 
-					string text = item.name;
-					int index;
+					string type = item.type;
+					string name = item.name;
+					string version = item.version;
+					string hash = item.hash;
 
-					index = text.IndexOf(' ');
-					text = text.Substring(index + 1);
+					Console.WriteLine($"{item.type}\t{item.name}");
 
-					index = text.IndexOf(' ');
-					string version = text.Substring(0, index);
-					text = text.Substring(index + 1);
-
-					index = names.IndexOf(text);
-					if (index != -1)
-					{
-						string magnet = item.magnet;
-
-						AssetType assetType = assetTypes[index];
-						Globals.Magnets.Add(assetType, new MagnetInfo((string)item.name, version, magnet, null));
-						torrents.Add(assetType, torrent);
-						Console.WriteLine($"{core}\t{assetType}\t{version}\t{text}");
-					}
+					TorrentInfo torrentInfo = new TorrentInfo(core, type, name, version, hash);
+					torrentInfo.Torrent = torrent;
+					torrentInfos.Add(torrentInfo);
 				}
 			}
 
 			//
 			// Setup Engine
 			//
-			Setup(torrents.Count);
+			Setup(torrentInfos.Count);
 
+			//
+			// Setup Torrents
+			//
 			Tools.ConsoleHeading(1, new string[] { "Setup Torrents" });
-			//
-			// Setup Magnets - TODO dont need magnets any more
-			//
-			foreach (AssetType assetType in Globals.Magnets.Keys)
+
+			foreach (TorrentInfo torrentInfo in torrentInfos)
 			{
-				MagnetInfo magnetInfo = Globals.Magnets[assetType];
-				Torrent torrent = torrents[assetType];
-
-				magnetInfo.MagnetLink = MagnetLink.Parse(magnetInfo.Magnet);
-				magnetInfo.Hash = magnetInfo.MagnetLink.InfoHashes.V1OrV2.ToHex();
-
-				var torrentSettings = new TorrentSettingsBuilder
-				{
-					MaximumConnections = MaximumConnectionsPerTorrent,
-					AllowPeerExchange = true,
-					AllowDht = true,
-				};
-
-				//	TODO Use either ....
-				//magnetInfo.TorrentManager = await Engine.AddAsync(magnetInfo.MagnetLink, Globals.DirectoryDownloads, torrentSettings.ToSettings());
-
-				Console.Write($"{magnetInfo.Name} ...");
-				magnetInfo.TorrentManager = await Engine.AddAsync(torrent, Globals.DirectoryDownloads, torrentSettings.ToSettings());
+				//	Torrent torrent
+				Console.Write($"{torrentInfo.Name} ...");
+				var torrentManager = await Engine.AddAsync(torrentInfo.Torrent, Globals.DirectoryDownloads, TorrentSettings);
+				torrentInfo.TorrentManager = torrentManager;
 				Console.WriteLine("...done");
 
-				pad = Math.Max(pad, magnetInfo.Name.Length);
+				pad = Math.Max(pad, torrentInfo.Name.Length);
 			}
 
 			Tools.ConsoleHeading(1, new string[] { "Starting Torrents" });
 
 			//
-			// Clear old directories
+			// Clear old downloads
 			//
 			if (Directory.Exists(Globals.DirectoryDownloads) == true)
 			{
-				List<string> currentNames = new List<string>(Globals.Magnets.Values.Select(info => info.Name));
+				List<string> currentNames = new List<string>(torrentInfos.Select(x => x.Name));
 
 				foreach (string directory in Directory.GetDirectories(Globals.DirectoryDownloads))
 				{
@@ -295,8 +233,11 @@ namespace dome_bt
 			//
 			// Start Torrents
 			//
-			foreach (TorrentManager manager in Engine.Torrents)
+			HashSet<string> hashes = new HashSet<string>();
+			foreach (TorrentInfo torrentInfo in torrentInfos)
 			{
+				var manager = torrentInfo.TorrentManager;
+
 				string name = manager.Name.PadRight(pad);
 
 				Console.WriteLine($"{name}	Starting	{manager.Files.Count}");
@@ -310,19 +251,19 @@ namespace dome_bt
 					Console.WriteLine($"{name}	Metadata	{manager.Files.Count}	{manager.Files[0].Priority}");
 				}
 
-				string hex = manager.MagnetLink.InfoHashes.V1OrV2.ToHex();
+				if (manager.InfoHashes.V1OrV2.ToHex() != torrentInfo.Hash)
+					throw new ApplicationException("hash mismatch");
 
-				if (hex == null || hex.Length != 40)
-					throw new ApplicationException($"{name} Bad Hash HashChecked:{manager.HashChecked}");
+				hashes.Add(torrentInfo.Hash);
 
-				lock (_Lock)
-					TorrentManagers.Add(hex, manager);
+				lock (Globals.TorrentInfos)
+					Globals.TorrentInfos.Add(torrentInfo);
 
-				Console.WriteLine($"{name}	Ready	{hex}");
+				Console.WriteLine($"{name}	Ready	{torrentInfo.Hash}");
 			}
 
 			//
-			// Clear old torrent cache files
+			// Clear old cache
 			//
 			foreach (string directory in new string[] { Path.Combine(Globals.DirectoryCache, "fastresume"), Path.Combine(Globals.DirectoryCache, "metadata") })
 			{
@@ -330,14 +271,11 @@ namespace dome_bt
 				{
 					foreach (string filename in Directory.GetFiles(directory))
 					{
-						lock (_Lock)
+						if (hashes.Contains(Path.GetFileNameWithoutExtension(filename)) == false)
 						{
-							if (TorrentManagers.ContainsKey(Path.GetFileNameWithoutExtension(filename)) == false)
-							{
-								Console.Write($"Remove old cache file {filename} ...");
-								File.Delete(filename);
-								Console.WriteLine("...done");
-							}
+							Console.Write($"Remove old cache file {filename} ...");
+							File.Delete(filename);
+							Console.WriteLine("...done");
 						}
 					}
 				}

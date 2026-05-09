@@ -13,14 +13,6 @@ namespace dome_bt
 
 			List<MagnetInfo> results = new List<MagnetInfo>();
 
-			Dictionary<string, string> nameTypeLookup = new Dictionary<string, string>()
-			{
-				{ "ROMs (merged)", "mr" },
-				{ "CHDs (merged)", "md" },
-				{ "Software List ROMs (merged)", "sr" },
-				{ "Software List CHDs (merged)", "sd" },
-			};
-
 			Console.WriteLine($"{core}\t{url}");
 
 			string html = Tools.FetchCached(url) ?? throw new ApplicationException("Can't fetch Magnet page");
@@ -52,10 +44,10 @@ namespace dome_bt
 				string version = text.Substring(0, index);
 				text = text.Substring(index + 1);
 
-				if (nameTypeLookup.ContainsKey(text) == false)
+				if (Globals.NameTypeLookup.ContainsKey(text) == false)
 					continue;
 
-				string type = nameTypeLookup[text];
+				string type = Globals.NameTypeLookup[text];
 
 				Console.WriteLine($"\t{type}\t{version}\t{name}");
 
