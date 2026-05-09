@@ -28,7 +28,7 @@ namespace dome_bt
 				switch (arguments["operation"])
 				{
 					case "convert":
-						return processor.Convert(arguments);
+						return processor.Convert(arguments["target"]).Result;
 
 					default:
 						throw new ApplicationException($"Unknown operation: {arguments["operation"]}");
@@ -36,7 +36,7 @@ namespace dome_bt
 			}
 			else
 			{
-				return processor.Run();
+				return processor.Run().Result;
 			}
 		}
 	}

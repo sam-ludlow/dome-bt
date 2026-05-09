@@ -1,54 +1,29 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Security.Cryptography;
 
 using HtmlAgilityPack;
-using Newtonsoft.Json;
 
 namespace dome_bt
 {
 	public class PleasureDome
 	{
-		private static string MagnetKey = "RRt08v+YWc2+910RGOhZO7DrNVnHKae8MDJyJNOd950=";
-
-		public static void ParseMagentLinks()
+		public static MagnetInfo[] ParseMagentLink(string core, string url)
 		{
 			Tools.ConsoleHeading(1, new string[] { "Magnet Scrape" });
 
-			if (Globals.Cores.Contains("mame"))
-				ParseMagentLinks("https://data.spludlow.co.uk/api/magnets/mame",
-					new AssetType[] { AssetType.MachineRom, AssetType.MachineDisk, AssetType.SoftwareRom, AssetType.SoftwareDisk },
-					new List<string>(new string[] { "ROMs (merged)", "CHDs (merged)", "Software List ROMs (merged)", "Software List CHDs (merged)" }),
-					Globals.Magnets);
+			List<MagnetInfo> results = new List<MagnetInfo>();
 
-			if (Globals.Cores.Contains("hbmame"))
-				ParseMagentLinks("https://data.spludlow.co.uk/api/magnets/hbmame",
-					new AssetType[] { AssetType.HbMameMachineRom, AssetType.HbMameSoftwareRom, },
-					new List<string>(new string[] { "ROMs (merged)", "Software List ROMs (merged)", }),
-					Globals.Magnets);
-		}
-
-		public static void ParseMagentLinks(string url, AssetType[] assetTypes, List<string> names, Dictionary<AssetType, MagnetInfo> magnets)
-		{
-			Console.WriteLine(url);
-
-			dynamic json = JsonConvert.DeserializeObject<dynamic>(Tools.FetchCached(url) ?? throw new ApplicationException("Can't fetch Magnets"));
-
-			string html;
-			using (var aes = Aes.Create())
+			Dictionary<string, string> nameTypeLookup = new Dictionary<string, string>()
 			{
-				aes.Key = Convert.FromBase64String(MagnetKey);
-				aes.IV = Convert.FromBase64String((string)json.iv);
-				aes.Mode = CipherMode.CBC;
-				aes.Padding = PaddingMode.PKCS7;
+				{ "ROMs (merged)", "mr" },
+				{ "CHDs (merged)", "md" },
+				{ "Software List ROMs (merged)", "sr" },
+				{ "Software List CHDs (merged)", "sd" },
+			};
 
-				using (var decryptor = aes.CreateDecryptor())
-					using (var stream = new MemoryStream(Convert.FromBase64String((string)json.body)))
-						using (var cryStream = new CryptoStream(stream, decryptor, CryptoStreamMode.Read))
-							using (var reader = new StreamReader(cryStream))
-								html = reader.ReadToEnd();
-			}
+			Console.WriteLine($"{core}\t{url}");
+
+			string html = Tools.FetchCached(url) ?? throw new ApplicationException("Can't fetch Magnet page");
 
 			HtmlDocument doc = new HtmlDocument();
 			doc.LoadHtml(html);
@@ -63,24 +38,31 @@ namespace dome_bt
 				if (href.StartsWith("magnet:") == false)
 					continue;
 
+				string name = node.InnerText;
+
 				string text = node.InnerText;
 				int index;
 
 				index = text.IndexOf(' ');
-				string core = text.Substring(0, index).ToLower();
+				if (text.Substring(0, index).ToLower() != core)
+					throw new ApplicationException("core mismatch");
 				text = text.Substring(index + 1);
 
 				index = text.IndexOf(' ');
 				string version = text.Substring(0, index);
 				text = text.Substring(index + 1);
 
-				index = names.IndexOf(text);
-				if (index != -1)
-				{
-					magnets.Add(assetTypes[index], new MagnetInfo(node.InnerText, version, href));
-					Console.WriteLine($"\t{assetTypes[index]}\t{node.InnerText}\t{version}");
-				}
+				if (nameTypeLookup.ContainsKey(text) == false)
+					continue;
+
+				string type = nameTypeLookup[text];
+
+				Console.WriteLine($"\t{type}\t{version}\t{name}");
+
+				results.Add(new MagnetInfo(name, version, href, type));
 			}
+
+			return results.ToArray();
 		}
 	}
 }

@@ -30,12 +30,20 @@ namespace dome_bt
         private double MaximumDownloadRate = 0;
 		private double MaximumUploadRate = 0;
 
+		public TorrentSettings TorrentSettings;
 
 		public BitTorrent()
 		{
+			var torrentSettings = new TorrentSettingsBuilder
+			{
+				MaximumConnections = MaximumConnectionsPerTorrent,
+				AllowPeerExchange = true,
+				AllowDht = true,
+			};
+			TorrentSettings = torrentSettings.ToSettings();
 		}
 
-		private void Setup(int count)
+		public void Setup(int count)
 		{
 			if (Globals.Config.ContainsKey("maximum-connections-per-torrent") == true)
 				MaximumConnectionsPerTorrent = Int32.Parse(Globals.Config["maximum-connections-per-torrent"]);
@@ -140,91 +148,6 @@ namespace dome_bt
             Task.WhenAll(managerTasks).Wait();
         }
 
-		public async Task Convert(string targetDirectory)
-		{
-			foreach (AssetType assetType in Globals.Magnets.Keys)
-			{
-				MagnetInfo magnetInfo = Globals.Magnets[assetType];
-
-				Console.WriteLine(magnetInfo.Name);
-
-				await AddMagnet(assetType, magnetInfo);
-
-				if (magnetInfo.TorrentManager.HasMetadata == false)
-				{
-					Console.Write("Wait For Metadata...");
-					await magnetInfo.TorrentManager.StartAsync();
-					await magnetInfo.TorrentManager.WaitForMetadataAsync();
-					await magnetInfo.TorrentManager.StopAsync();
-					Console.WriteLine("...done.");
-				}
-			}
-
-			Console.Write("Stopping...");
-			await Globals.BitTorrent.Engine.StopAllAsync();
-			Console.WriteLine("...done.");
-
-			Dictionary<string, AssetType[]> coreTypes = new Dictionary<string, AssetType[]>()
-			{
-				{ "mame", new AssetType[] { AssetType.MachineRom, AssetType.MachineDisk, AssetType.SoftwareRom, AssetType.SoftwareDisk } },
-				{ "hbmame", new AssetType[] { AssetType.HbMameMachineRom, AssetType.HbMameSoftwareRom } },
-			};
-
-			Directory.CreateDirectory(targetDirectory);
-
-			foreach (string core in coreTypes.Keys)
-			{
-				var array = new JArray();
-
-				foreach (AssetType assetType in coreTypes[core])
-				{
-					MagnetInfo magnetInfo = Globals.Magnets[assetType];
-
-					Console.WriteLine($"{assetType}\t{magnetInfo.Name}\t{magnetInfo.Hash}\t{magnetInfo.Magnet}");
-
-					string sourceFilename = Path.Combine(Globals.DirectoryCache, "metadata", magnetInfo.Hash + ".torrent");
-					
-					string zipFilename = Path.Combine(targetDirectory, $"{magnetInfo.Hash}.torrent.zip");
-					File.Delete(zipFilename);
-					Tools.CompressSingleFile(sourceFilename, zipFilename);
-
-					dynamic json = new JObject();
-
-					json.name = magnetInfo.Name;
-					json.hash = magnetInfo.Hash;
-					json.magnet = magnetInfo.Magnet;
-					json.torrent = System.Convert.ToBase64String(File.ReadAllBytes(zipFilename));
-
-					array.Add(json);
-
-					File.Delete(zipFilename);
-				}
-
-				string targetFilename = Path.Combine(targetDirectory, core + ".json");
-				File.Delete(targetFilename);
-				File.WriteAllText(targetFilename, array.ToString());
-			}
-		}
-
-		public async Task AddMagnet(AssetType assetType, MagnetInfo magnetInfo)
-		{
-			MagnetLink magnetLink;
-			if (MagnetLink.TryParse(magnetInfo.Magnet, out magnetLink) == false)
-				throw new ApplicationException($"Bad magnet link: {magnetInfo.Magnet}");
-
-			magnetInfo.MagnetLink = magnetLink;
-
-			var torrentSettings = new TorrentSettingsBuilder
-			{
-				MaximumConnections = MaximumConnectionsPerTorrent,
-			};
-
-			magnetInfo.TorrentManager = await Engine.AddAsync(magnetLink, Globals.DirectoryDownloads, torrentSettings.ToSettings());
-			magnetInfo.Hash = magnetLink.InfoHashes.V1OrV2.ToHex();
-
-			Console.WriteLine($"{assetType}	{magnetInfo.Version}	{magnetInfo.Name}	{magnetInfo.Hash}");
-		}
-
 		private static readonly string MagnetKey = "RRt08v+YWc2+910RGOhZO7DrNVnHKae8MDJyJNOd950=";
 
 		public async Task Worker()
@@ -308,7 +231,7 @@ namespace dome_bt
 						string magnet = item.magnet;
 
 						AssetType assetType = assetTypes[index];
-						Globals.Magnets.Add(assetType, new MagnetInfo((string)item.name, version, magnet));
+						Globals.Magnets.Add(assetType, new MagnetInfo((string)item.name, version, magnet, null));
 						torrents.Add(assetType, torrent);
 						Console.WriteLine($"{core}\t{assetType}\t{version}\t{text}");
 					}
@@ -316,7 +239,7 @@ namespace dome_bt
 			}
 
 			//
-			// Setup Engine - TODO combine with Start
+			// Setup Engine
 			//
 			Setup(torrents.Count);
 

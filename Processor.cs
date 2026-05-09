@@ -2,12 +2,15 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Reflection;
 using System.Text;
+using System.Threading.Tasks;
 
 using MonoTorrent;
 using MonoTorrent.Client;
+using Newtonsoft.Json.Linq;
 
 namespace dome_bt
 {
@@ -23,20 +26,23 @@ namespace dome_bt
 
 	public class MagnetInfo
 	{
-		public MagnetInfo(string name, string version, string magnet)
+		public MagnetInfo(string name, string version, string magnet, string type)
 		{
 			Name = name;
 			Version = version;
 			Magnet = magnet;
+			Type = type;
 		}
 		public string Name;
 		public string Version;
 		public string Magnet;
+		public string Type;
 		public string Hash;
 		public MagnetLink MagnetLink;
 
 		public TorrentManager TorrentManager;
 	}
+
 
 	public class Globals
 	{
@@ -102,7 +108,7 @@ $$$$$$$  | $$$$$$  |$$ | \_/ $$ |$$$$$$$$\       $$$$$$$  |  $$ |
 
 ";
 
-		public int Run()
+		public Processor()
 		{
 			Console.Title = $"DOME-BT {Globals.AssemblyVersion}";
 
@@ -132,26 +138,122 @@ $$$$$$$  | $$$$$$  |$$ | \_/ $$ |$$$$$$$$\       $$$$$$$  |  $$ |
 			{
 				Globals.Cores.Add("mame");
 			}
+		}
 
+
+		public async Task<int> Convert(string targetDirectory)
+		{
+			string[] cores = Globals.Cores.ToArray();
+			string[] urls = Globals.Config["magnets"].Split(',').Select(x => x.Trim()).ToArray();
+
+			Dictionary<string, MagnetInfo[]> coreMagnetInfos = new Dictionary<string, MagnetInfo[]>();
+
+			for (int index = 0; index < cores.Length; ++index)
+			{
+				string core = cores[index];
+				string url = urls[index];
+
+				MagnetInfo[] magnetInfos = PleasureDome.ParseMagentLink(core, url);
+				coreMagnetInfos.Add(core, magnetInfos);
+
+				foreach (MagnetInfo magnetInfo in magnetInfos)
+				{
+					magnetInfo.MagnetLink = MagnetLink.Parse(magnetInfo.Magnet);
+					magnetInfo.Hash = magnetInfo.MagnetLink.InfoHashes.V1OrV2.ToHex();
+				}
+			}
+
+			BitTorrent bitTorrent = new BitTorrent();
+
+			bitTorrent.Setup(coreMagnetInfos.Values.Select(x => x.Length).Sum());
+
+			Tools.ConsoleHeading(1, new string[] { "Add Magnets" });
+
+			foreach (string core in coreMagnetInfos.Keys)
+			{
+				foreach (var magnetInfo in coreMagnetInfos[core])
+				{
+					Console.Write($"{magnetInfo.Name} ...");
+					await bitTorrent.Engine.AddAsync(magnetInfo.MagnetLink, Globals.DirectoryDownloads, bitTorrent.TorrentSettings);
+					Console.WriteLine("...done");
+				}
+			}
+
+			Tools.ConsoleHeading(1, new string[] { "Get Metadata" });
+
+			int newCount = 0;
+
+			foreach (var torrentManager in bitTorrent.Engine.Torrents)
+			{
+				if (torrentManager.HasMetadata == false)
+				{
+					Console.Write($"{torrentManager.Name} ...");
+					await torrentManager.StartAsync();
+					await torrentManager.WaitForMetadataAsync();
+					await torrentManager.StopAsync();
+					Console.WriteLine("...done");
+
+					++newCount;
+				}
+				else
+				{
+					Console.WriteLine($"{torrentManager.Name} ...have");
+				}
+			}
+
+			Console.Write("Stopping Engine ...");
+			await bitTorrent.Engine.StopAllAsync();
+			Console.WriteLine("...done");
+
+			Tools.ConsoleHeading(1, new string[] { "Save Payloads" });
+
+			Directory.CreateDirectory(targetDirectory);
+
+			foreach (string core in coreMagnetInfos.Keys)
+			{
+				var array = new JArray();
+
+				foreach (var magnetInfo in coreMagnetInfos[core])
+				{
+					Console.WriteLine($"{magnetInfo.Type}\t{magnetInfo.Name}\t{magnetInfo.Hash}");
+
+					string sourceFilename = Path.Combine(Globals.DirectoryCache, "metadata", magnetInfo.Hash + ".torrent");
+
+					string zipFilename = Path.Combine(targetDirectory, $"{magnetInfo.Hash}.torrent.zip");
+					File.Delete(zipFilename);
+					Tools.CompressSingleFile(sourceFilename, zipFilename);
+
+					dynamic json = new JObject();
+
+					json.name = magnetInfo.Name;
+					json.type = magnetInfo.Type;
+					json.version = magnetInfo.Version;
+					json.hash = magnetInfo.Hash;
+					json.magnet = magnetInfo.Magnet;
+					json.torrent = System.Convert.ToBase64String(File.ReadAllBytes(zipFilename));
+
+					array.Add(json);
+
+					File.Delete(zipFilename);
+				}
+
+				string targetFilename = Path.Combine(targetDirectory, core + ".json");
+				File.Delete(targetFilename);
+				File.WriteAllText(targetFilename, array.ToString(), Encoding.ASCII);
+
+				Console.WriteLine($"{core}\t{targetFilename}");
+			}
+
+			return newCount;
+		}
+
+		public async Task<int> Run()
+		{
 			WebServer webServer = new WebServer();
 			webServer.StartListener();
 
 			Globals.BitTorrent = new BitTorrent();
 			Globals.BitTorrent.Run();
-
-			return 0;
-		}
-
-		public int Convert(Dictionary<string, string> arguments)
-		{
-			Globals.Cores = new List<string>(new string[] { "mame", "hbmame" });
-
-			PleasureDome.ParseMagentLinks();
-
-			Globals.BitTorrent = new BitTorrent();
-
-			var task = Globals.BitTorrent.Convert(arguments["target"]);
-			task.Wait();
 
 			return 0;
 		}
