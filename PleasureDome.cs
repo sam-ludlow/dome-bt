@@ -7,11 +7,11 @@ namespace dome_bt
 {
 	public class PleasureDome
 	{
-		public static MagnetInfo[] ParseMagentLink(string core, string url)
+		public static TorrentInfo[] ParseMagentLink(string core, string url)
 		{
 			Tools.ConsoleHeading(1, new string[] { "Magnet Scrape" });
 
-			List<MagnetInfo> results = new List<MagnetInfo>();
+			List<TorrentInfo> results = new List<TorrentInfo>();
 
 			Console.WriteLine($"{core}\t{url}");
 
@@ -51,7 +51,13 @@ namespace dome_bt
 
 				Console.WriteLine($"\t{type}\t{version}\t{name}");
 
-				results.Add(new MagnetInfo(name, version, href, type));
+				results.Add(new TorrentInfo()
+				{
+					Name = name,
+					Type = type,
+					Version = version,
+					Magnet = href,
+				});
 			}
 
 			return results.ToArray();

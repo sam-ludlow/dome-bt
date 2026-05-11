@@ -14,45 +14,20 @@ using Newtonsoft.Json.Linq;
 
 namespace dome_bt
 {
-	public class MagnetInfo
-	{
-		public MagnetInfo(string name, string version, string magnet, string type)
-		{
-			Name = name;
-			Version = version;
-			Magnet = magnet;
-			Type = type;
-		}
-		public string Name;
-		public string Version;
-		public string Magnet;
-		public string Type;
-		public string Hash;
-
-		public MagnetLink MagnetLink;
-	}
-
 	public class TorrentInfo
 	{
-		public TorrentInfo(string core, string type, string name, string version, string hash)
-		{
-			Core = core;
-			Type = type;
-			Name = name;
-			Version = version;
-			Hash = hash;
-		}
 		public string Core;
 		public string Type;
 		public string Name;
 		public string Version;
 		public string Hash;
+		public string Magnet;
 
 		public Torrent Torrent;
 		public TorrentManager TorrentManager;
+
+		public MagnetLink MagnetLink;
 	}
-
-
 
 	public class Globals
 	{
@@ -164,17 +139,17 @@ $$$$$$$  | $$$$$$  |$$ | \_/ $$ |$$$$$$$$\       $$$$$$$  |  $$ |
 			string[] cores = Globals.Cores.ToArray();
 			string[] urls = Globals.Config["magnets"].Split(',').Select(x => x.Trim()).ToArray();
 
-			Dictionary<string, MagnetInfo[]> coreMagnetInfos = new Dictionary<string, MagnetInfo[]>();
+			Dictionary<string, TorrentInfo[]> coreMagnetInfos = new Dictionary<string, TorrentInfo[]>();
 
 			for (int index = 0; index < cores.Length; ++index)
 			{
 				string core = cores[index];
 				string url = urls[index];
 
-				MagnetInfo[] magnetInfos = PleasureDome.ParseMagentLink(core, url);
+				TorrentInfo[] magnetInfos = PleasureDome.ParseMagentLink(core, url);
 				coreMagnetInfos.Add(core, magnetInfos);
 
-				foreach (MagnetInfo magnetInfo in magnetInfos)
+				foreach (TorrentInfo magnetInfo in magnetInfos)
 				{
 					magnetInfo.MagnetLink = MagnetLink.Parse(magnetInfo.Magnet);
 					magnetInfo.Hash = magnetInfo.MagnetLink.InfoHashes.V1OrV2.ToHex();

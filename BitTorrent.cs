@@ -127,11 +127,36 @@ namespace dome_bt
 			Console.WriteLine("...done");
 		}
 
-		private static readonly string MagnetKey = "RRt08v+YWc2+910RGOhZO7DrNVnHKae8MDJyJNOd950=";
+		private static readonly string PayloadKey = "RRt08v+YWc2+910RGOhZO7DrNVnHKae8MDJyJNOd950=";
+
+		private static string Decrypt(string input, string iv)
+		{
+			using (var aes = Aes.Create())
+			{
+				aes.Key = System.Convert.FromBase64String(PayloadKey);
+				aes.IV = System.Convert.FromBase64String(iv);
+				aes.Mode = CipherMode.CBC;
+				aes.Padding = PaddingMode.PKCS7;
+
+				using (var decryptor = aes.CreateDecryptor())
+				using (var stream = new MemoryStream(System.Convert.FromBase64String(input)))
+				using (var cryStream = new CryptoStream(stream, decryptor, CryptoStreamMode.Read))
+				using (var reader = new StreamReader(cryStream))
+					return reader.ReadToEnd();
+			}
+		}
 
 		public async Task Worker()
 		{
 			int pad = 0;
+
+			//
+			// Existing Torrents
+			//
+			HashSet<string> existingHashes = new HashSet<string>();
+			string metadataDirectory = Path.Combine(Globals.DirectoryCache, "metadata");
+			if (Directory.Exists(metadataDirectory) == true)
+				existingHashes = Directory.GetFiles(metadataDirectory, "*.torrent").Select(filename => Path.GetFileNameWithoutExtension(filename)).ToHashSet();
 
 			//
 			// Download torrents
@@ -142,50 +167,78 @@ namespace dome_bt
 
 			foreach (string core in Globals.Cores)
 			{
-				string url = $"https://data.spludlow.co.uk/api/torrents/{core}";
-
-				dynamic json = JsonConvert.DeserializeObject<dynamic>(Tools.FetchCached(url) ?? throw new ApplicationException("Can't fetch Torrents"));
-
-				string body;
-				using (var aes = Aes.Create())
+				for (int pass = 0; pass < 2; ++pass)
 				{
-					aes.Key = System.Convert.FromBase64String(MagnetKey);
-					aes.IV = System.Convert.FromBase64String((string)json.iv);
-					aes.Mode = CipherMode.CBC;
-					aes.Padding = PaddingMode.PKCS7;
+					string url = $"https://data.spludlow.co.uk/api/torrents/{core}";
+					if (pass == 0)
+						url += ".peek";
 
-					using (var decryptor = aes.CreateDecryptor())
-					using (var stream = new MemoryStream(System.Convert.FromBase64String((string)json.body)))
-					using (var cryStream = new CryptoStream(stream, decryptor, CryptoStreamMode.Read))
-					using (var reader = new StreamReader(cryStream))
-						body = reader.ReadToEnd();
-				}
+					dynamic json = JsonConvert.DeserializeObject<dynamic>(Tools.FetchCached(url) ?? throw new ApplicationException("Can't fetch Torrents"));
 
-				foreach (dynamic item in JArray.Parse(body))
-				{
-					Torrent torrent;
-					using (var targetStream = new MemoryStream())
+					string body = Decrypt((string)json.body, (string)json.iv);
+
+					if (pass == 0)
 					{
-						using (var sourceStream = new MemoryStream(System.Convert.FromBase64String((string)item.torrent)))
-						using (var zipArchive = new ZipArchive(sourceStream))
-						using (var zipStream = zipArchive.Entries[0].Open())
-							zipStream.CopyTo(targetStream);
+						JArray items = JArray.Parse(body);
 
+						HashSet<string> currentHashes = new HashSet<string>(items.Select(item => (string)item["hash"]));
 
-						targetStream.Position = 0;
-						torrent = Torrent.Load(targetStream);
+						if (existingHashes.IsSupersetOf(currentHashes) == true)
+						{
+							foreach (dynamic item in items)
+							{
+								Torrent torrent = await Torrent.LoadAsync(Path.Combine(metadataDirectory, $"{item.hash}.torrent"));
+
+								Console.WriteLine($"HAVE\t{item.type}\t{item.name}");
+
+								TorrentInfo torrentInfo = new TorrentInfo()
+								{
+									Core = core,
+									Type = (string)item.type,
+									Name = (string)item.name,
+									Version = (string)item.version,
+									Hash = (string)item.hash,
+									Magnet = (string)item.magnet,
+
+									Torrent = torrent,
+								};
+								torrentInfos.Add(torrentInfo);
+							}
+							break;
+						}
 					}
+					else
+					{
+						foreach (dynamic item in JArray.Parse(body))
+						{
+							Torrent torrent;
+							using (var targetStream = new MemoryStream())
+							{
+								using (var sourceStream = new MemoryStream(System.Convert.FromBase64String((string)item.torrent)))
+								using (var zipArchive = new ZipArchive(sourceStream))
+								using (var zipStream = zipArchive.Entries[0].Open())
+									zipStream.CopyTo(targetStream);
 
-					string type = item.type;
-					string name = item.name;
-					string version = item.version;
-					string hash = item.hash;
+								targetStream.Position = 0;
+								torrent = Torrent.Load(targetStream);
+							}
 
-					Console.WriteLine($"{item.type}\t{item.name}");
+							Console.WriteLine($"NEW\t{item.type}\t{item.name}");
 
-					TorrentInfo torrentInfo = new TorrentInfo(core, type, name, version, hash);
-					torrentInfo.Torrent = torrent;
-					torrentInfos.Add(torrentInfo);
+							TorrentInfo torrentInfo = new TorrentInfo()
+							{
+								Core = core,
+								Type = (string)item.type,
+								Name = (string)item.name,
+								Version = (string)item.version,
+								Hash = (string)item.hash,
+								Magnet = (string)item.magnet,
+
+								Torrent = torrent,
+							};
+							torrentInfos.Add(torrentInfo);
+						}
+					}
 				}
 			}
 
