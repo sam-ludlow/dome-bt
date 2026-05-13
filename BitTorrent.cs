@@ -20,6 +20,8 @@ namespace dome_bt
 
 		public bool AskStop = false;
 
+		private int PortNumber = 0;
+
 		private int MaximumConnectionsPerTorrent = 100;
 
 		private readonly double MegaBitsToBytes = 125000.0;
@@ -41,19 +43,29 @@ namespace dome_bt
 
 		public void Setup(int count)
 		{
-			if (Globals.Config.ContainsKey("maximum-connections-per-torrent") == true)
-				MaximumConnectionsPerTorrent = Int32.Parse(Globals.Config["maximum-connections-per-torrent"]);
+			string config;
 
-			if (Globals.Config.ContainsKey("maximum-download-rate-mbps") == true)
-				MaximumDownloadRate = Double.Parse(Globals.Config["maximum-download-rate-mbps"]);
+			config = Globals.Config.Get("maximum-connections-per-torrent");
+			if (config != null)
+				MaximumConnectionsPerTorrent = Int32.Parse(config);
 
-			if (Globals.Config.ContainsKey("maximum-upload-rate-mbps") == true)
-				MaximumUploadRate = Double.Parse(Globals.Config["maximum-upload-rate-mbps"]);
+			config = Globals.Config.Get("maximum-download-rate-mbps");
+			if (config != null)
+				MaximumDownloadRate = Double.Parse(config);
 
-			//
-			// Setup Engine
-			//
-			int portNumber = 55123;
+			config = Globals.Config.Get("maximum-upload-rate-mbps");
+			if (config != null)
+				MaximumUploadRate = Double.Parse(config);
+
+			if (Globals.Config.ContainsKey("port-number") == false)
+			{
+				PortNumber = new Random().Next(49152, 65536);
+				Globals.Config.Set("port-number", PortNumber.ToString());
+			}
+			else
+			{
+				PortNumber = Int32.Parse(Globals.Config.Get("port-number"));
+			}
 
 			var engineSettings = new EngineSettingsBuilder
 			{
@@ -67,11 +79,11 @@ namespace dome_bt
 				CacheDirectory = Globals.DirectoryCache,
 
 				ListenEndPoints = new Dictionary<string, IPEndPoint>() {
-					{ "ipv4", new IPEndPoint (IPAddress.Any, portNumber) },
-					{ "ipv6", new IPEndPoint (IPAddress.IPv6Any, portNumber) }
+					{ "ipv4", new IPEndPoint (IPAddress.Any, PortNumber) },
+					{ "ipv6", new IPEndPoint (IPAddress.IPv6Any, PortNumber) }
 				},
 
-				DhtEndPoint = new IPEndPoint(IPAddress.Any, portNumber),
+				DhtEndPoint = new IPEndPoint(IPAddress.Any, PortNumber),
 
 				MaximumConnections = count * MaximumConnectionsPerTorrent,
 				MaximumDownloadRate = (int)(MaximumDownloadRate * MegaBitsToBytes),
@@ -356,7 +368,7 @@ namespace dome_bt
 				}
 
 				Tools.ConsoleHeading(1, new string[] {
-					$"DOME-BT {Globals.AssemblyVersion}    start:{Globals.StartTime}    now:{DateTime.Now}    run:{Tools.TimeTookText(DateTime.Now - Globals.StartTime)}",
+					$"DOME-BT {Globals.AssemblyVersion}    start:{Globals.StartTime}    now:{DateTime.Now}    run:{Tools.TimeTookText(DateTime.Now - Globals.StartTime)}    port:{PortNumber}",
 					"",
 					$"connections:{Engine.ConnectionManager.OpenConnections}    download:{Tools.DataSizeText(Engine.TotalDownloadRate)}/s    upload:{Tools.DataSizeText(Engine.TotalUploadRate)}/s",
 					"",

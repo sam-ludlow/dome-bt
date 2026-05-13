@@ -52,7 +52,7 @@ namespace dome_bt
 
 		public static List<string> Cores = new List<string>();
 
-		public static Dictionary<string, string> Config = new Dictionary<string, string>();
+		public static Config Config;
 
 		public static Dictionary<string, string> NameTypeLookup = new Dictionary<string, string>()
 		{
@@ -80,6 +80,7 @@ namespace dome_bt
 			HttpClient.DefaultRequestHeaders.Add("User-Agent", $"dome-bt/{AssemblyVersion} (https://github.com/sam-ludlow/dome-bt)");
 			HttpClient.Timeout = TimeSpan.FromSeconds(180);     // metdata 3 minutes
 
+			Config = new Config(Path.Combine(Globals.DirectoryRoot, "_config.txt"));
 		}
 	}
 
@@ -107,24 +108,9 @@ $$$$$$$  | $$$$$$  |$$ | \_/ $$ |$$$$$$$$\       $$$$$$$  |  $$ |
 
 			Console.Write(WelcomeText.Replace("@VERSION", Globals.AssemblyVersion));
 
-			string configFilename = Path.Combine(Globals.DirectoryRoot, "_config.txt");
-			if (File.Exists(configFilename) == true)
-			{
-				using (StreamReader reader = new StreamReader(configFilename, Encoding.UTF8))
-				{
-					string line;
-					while ((line = reader.ReadLine()) != null)
-					{
-						string[] parts = line.Split('\t');
-						if (parts.Length == 2)
-							Globals.Config.Add(parts[0].ToLower(), parts[1]);
-					}
-				}
-			}
-
 			if (Globals.Config.ContainsKey("cores") == true)
 			{
-				foreach (string core in Globals.Config["cores"].Split(','))
+				foreach (string core in Globals.Config.Get("cores").Split(','))
 					Globals.Cores.Add(core.Trim());
 			}
 			else
@@ -147,7 +133,7 @@ $$$$$$$  | $$$$$$  |$$ | \_/ $$ |$$$$$$$$\       $$$$$$$  |  $$ |
 		public async Task<int> ConvertAsync(string targetDirectory)
 		{
 			string[] cores = Globals.Cores.ToArray();
-			string[] urls = Globals.Config["magnets"].Split(',').Select(x => x.Trim()).ToArray();
+			string[] urls = Globals.Config.Get("magnets").Split(',').Select(x => x.Trim()).ToArray();
 
 			Dictionary<string, TorrentInfo[]> coreMagnetInfos = new Dictionary<string, TorrentInfo[]>();
 

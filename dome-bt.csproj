@@ -84,6 +84,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BitTorrent.cs" />
+    <Compile Include="Config.cs" />
     <Compile Include="PleasureDome.cs" />
     <Compile Include="Processor.cs" />
     <Compile Include="Program.cs" />
