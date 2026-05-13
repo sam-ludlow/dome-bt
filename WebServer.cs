@@ -147,67 +147,89 @@ namespace dome_bt
 			writer.WriteLine(json.ToString(Formatting.Indented));
 		}
 
-		public void _api_stop(HttpListenerContext context, StreamWriter writer)
-		{
-			Globals.BitTorrent.AskStop = true;
-
-			dynamic json = new JObject();
-
-			json.message = "OK";
-
-			writer.WriteLine(json.ToString(Formatting.Indented));
-		}
-
 		public void _api_info(HttpListenerContext context, StreamWriter writer)
 		{
-			ClientEngine engine = Globals.BitTorrent.Engine;
-
 			dynamic json = new JObject();
 
 			json.version = Globals.AssemblyVersion;
 			json.pid = Globals.Pid;
-			json.is_running = engine.IsRunning;
-
 			json.cores = new JArray(Globals.Cores);
+			json.priorities = new JArray(Enum.GetNames(typeof(Priority)));
+			json.start_time = Globals.StartTime;
+			json.time_now = DateTime.Now;
+			json.run_time_text = Tools.TimeTookText(DateTime.Now - Globals.StartTime);
+			json.cache_directory = Globals.DirectoryCache;
 
-			json.half_open_connections = engine.ConnectionManager.HalfOpenConnections;
-			json.open_connections = engine.ConnectionManager.OpenConnections;
+			if (Globals.ReadyTime != Globals.StartTime)
+			{
+				json.ready_minutes = (Globals.ReadyTime - Globals.StartTime).TotalMinutes;  //	TODO: Depreachiate
+				json.ready_seconds = (int)Math.Ceiling((Globals.ReadyTime - Globals.StartTime).TotalSeconds);
+			}
 
-			json.total_download_rate = engine.TotalDownloadRate;
-			json.total_upload_rate = engine.TotalUploadRate;
+			ClientEngine engine = Globals.BitTorrent.Engine;
 
-			json.total_download_rate_text = Tools.DataSizeText(engine.TotalDownloadRate);
-			json.total_upload_rate_text = Tools.DataSizeText(engine.TotalUploadRate);
+			json.is_running = engine?.IsRunning ?? false;
+			json.half_open_connections = engine?.ConnectionManager.HalfOpenConnections ?? 0;
+			json.open_connections = engine?.ConnectionManager.OpenConnections ?? 0;
+			json.dht_state = engine?.Dht.State.ToString() ?? "";
+			json.open_files = engine?.DiskManager.OpenFiles ?? 0;
+			json.total_download_rate = engine?.TotalDownloadRate ?? 0;
+			json.total_upload_rate = engine?.TotalUploadRate ?? 0;
+			json.total_download_rate_text = Tools.DataSizeText(engine?.TotalDownloadRate ?? 0);
+			json.total_upload_rate_text = Tools.DataSizeText(engine?.TotalUploadRate ?? 0);
 
 			long dataBytesReceived = 0;
 			long dataBytesSent = 0;
-			foreach (TorrentManager manager in engine.Torrents)
+
+			//
+			// Torrents
+			//
+			dynamic torrents = new JArray();
+			lock (Globals.TorrentInfos)
 			{
-				dataBytesReceived += manager.Monitor.DataBytesReceived;
-				dataBytesSent += manager.Monitor.DataBytesSent;
+				foreach (var torrentInfo in Globals.TorrentInfos)
+				{
+					var torrentManager = torrentInfo.TorrentManager;
+
+					dynamic torrent = new JObject();
+
+					torrent.name = torrentInfo.Name;
+					torrent.hash = torrentInfo.Hash;
+					torrent.core = torrentInfo.Core;
+					torrent.type = torrentInfo.Type;
+					torrent.version = torrentInfo.Version;
+					torrent.magnet = torrentInfo.Magnet;
+
+					torrent.file_count = torrentManager.Files.Count;
+					torrent.state = torrentManager.State.ToString();
+					torrent.has_metadata = torrentManager.HasMetadata;
+					torrent.open_connections = torrentManager.OpenConnections;
+
+					if (torrentManager.Error != null)
+						torrent.error = torrentManager.Error.Exception.ToString();
+
+					torrent.peers_available = torrentManager.Peers.Available;
+					torrent.peers_leechs = torrentManager.Peers.Leechs;
+					torrent.peers_seeds = torrentManager.Peers.Seeds;
+
+					torrent.bytes_received = torrentManager.Monitor.DataBytesReceived;
+					torrent.bytes_sent = torrentManager.Monitor.DataBytesSent;
+					torrent.bytes_received_text = Tools.DataSizeText(torrentManager.Monitor.DataBytesReceived);
+					torrent.bytes_sent_text = Tools.DataSizeText(torrentManager.Monitor.DataBytesSent);
+
+					dataBytesReceived += torrentManager.Monitor.DataBytesReceived;
+					dataBytesSent += torrentManager.Monitor.DataBytesSent;
+
+					torrents.Add(torrent);
+				}
 			}
+			json.torrents = torrents;
 
 			json.total_bytes_received = dataBytesReceived;
 			json.total_bytes_sent = dataBytesSent;
 
 			json.total_bytes_received_text = Tools.DataSizeText(dataBytesReceived);
 			json.total_bytes_sent_text = Tools.DataSizeText(dataBytesSent);
-
-			json.start_time = Globals.StartTime;
-
-			if (Globals.ReadyTime != Globals.StartTime)
-				json.ready_minutes = (Globals.ReadyTime - Globals.StartTime).TotalMinutes;
-
-			json.time_now = DateTime.Now;
-			json.run_time_text = Tools.TimeTookText(DateTime.Now - Globals.StartTime);
-
-			json.dht_state = engine.Dht.State.ToString();
-
-			json.open_files = engine.DiskManager.OpenFiles;
-			
-			json.cache_directory = engine.Settings.CacheDirectory;
-
-			json.priorities = new JArray(Enum.GetNames(typeof(Priority)));
 
 			//
 			// Magnets	TODO: Depreachiate
@@ -220,92 +242,69 @@ namespace dome_bt
 			// Peer Listeners
 			//
 			JArray peerListeners = new JArray();
-			foreach (var listener in engine.PeerListeners)
+			if (engine != null)
 			{
-				dynamic listen = new JObject();
-				if (listener.LocalEndPoint != null)
+				foreach (var listener in engine.PeerListeners)
 				{
-					listen.local_address = listener.LocalEndPoint.Address.ToString();
-					listen.local_port = listener.LocalEndPoint.Port;
+					dynamic listen = new JObject();
+					if (listener.LocalEndPoint != null)
+					{
+						listen.local_address = listener.LocalEndPoint.Address.ToString();
+						listen.local_port = listener.LocalEndPoint.Port;
+					}
+					if (listener.PreferredLocalEndPoint != null)
+					{
+						listen.preferred_local_address = listener.PreferredLocalEndPoint.Address.ToString();
+						listen.preferred_local_port = listener.PreferredLocalEndPoint.Port;
+					}
+					listen.status = listener.Status.ToString();
+					peerListeners.Add(listen);
 				}
-				if (listener.PreferredLocalEndPoint != null)
-				{
-					listen.preferred_local_address = listener.PreferredLocalEndPoint.Address.ToString();
-					listen.preferred_local_port = listener.PreferredLocalEndPoint.Port;
-				}
-				listen.status = listener.Status.ToString();
-				peerListeners.Add(listen);
 			}
 			json.peer_listeners = peerListeners;
 
 			//
 			// Port Mappings
 			//
-			string[] portMappingsNames = new string[] { "Created", "Pending", "Failed" };
-			IReadOnlyList<Mapping>[] mappingsList = new IReadOnlyList<Mapping>[] { engine.PortMappings.Created, engine.PortMappings.Pending, engine.PortMappings.Failed };
-
 			JArray portMappings = new JArray();
-			for (int index = 0; index < mappingsList.Length; index++)
+			if (engine != null)
 			{
-				string portMappingsName = portMappingsNames[index];
-				IReadOnlyList<Mapping> mappings = mappingsList[index];
+				string[] portMappingsNames = new string[] { "Created", "Pending", "Failed" };
+				IReadOnlyList<Mapping>[] mappingsList = new IReadOnlyList<Mapping>[] { engine.PortMappings.Created, engine.PortMappings.Pending, engine.PortMappings.Failed };
 
-				JArray mapsArray = new JArray();
 
-				foreach (Mapping mapping in mappings)
+				for (int index = 0; index < mappingsList.Length; index++)
 				{
-					dynamic map = new JObject();
-					map.public_port = mapping.PublicPort;
-					map.public_port = mapping.PublicPort;
-					map.protocol = mapping.Protocol.ToString();
-					mapsArray.Add(map);
-				}
+					string portMappingsName = portMappingsNames[index];
+					IReadOnlyList<Mapping> mappings = mappingsList[index];
 
-				dynamic maps = new JObject();
-				maps.name = portMappingsName;
-				maps.mappings = mapsArray;
-				portMappings.Add(maps);
+					JArray mapsArray = new JArray();
+
+					foreach (Mapping mapping in mappings)
+					{
+						dynamic map = new JObject();
+						map.public_port = mapping.PublicPort;
+						map.public_port = mapping.PublicPort;
+						map.protocol = mapping.Protocol.ToString();
+						mapsArray.Add(map);
+					}
+
+					dynamic maps = new JObject();
+					maps.name = portMappingsName;
+					maps.mappings = mapsArray;
+					portMappings.Add(maps);
+				}
 			}
 			json.port_mappings = portMappings;
-
-			//
-			// Torrents
-			//
-			dynamic torrents = new JArray();
-			foreach (var torrentManager in engine.Torrents)
-			{
-				dynamic result = new JObject();
-
-				result.name = torrentManager.Name;
-				result.hash = torrentManager.MagnetLink.InfoHashes.V1OrV2.ToHex();
-				result.file_count = torrentManager.Files.Count;
-				result.state = torrentManager.State.ToString();
-				result.has_metadata = torrentManager.HasMetadata;
-
-				if (torrentManager.Error != null)
-					result.error = torrentManager.Error.Exception.ToString();
-
-				result.open_connections = torrentManager.OpenConnections;
-
-				result.peers_available = torrentManager.Peers.Available;
-				result.peers_leechs = torrentManager.Peers.Leechs;
-				result.peers_seeds = torrentManager.Peers.Seeds;
-
-				result.bytes_received = torrentManager.Monitor.DataBytesReceived;
-				result.bytes_sent = torrentManager.Monitor.DataBytesSent;
-
-				result.bytes_received_text = Tools.DataSizeText(torrentManager.Monitor.DataBytesReceived);
-				result.bytes_sent_text = Tools.DataSizeText(torrentManager.Monitor.DataBytesSent);
-
-				torrents.Add(result);
-			}
-			json.torrents = torrents;
 
 			writer.WriteLine(json.ToString(Formatting.Indented));
 		}
 
 		public void _api_files(HttpListenerContext context, StreamWriter writer)
 		{
+			if (Globals.ReadyTime == Globals.StartTime)
+				throw new ApplicationException("Not ready try in a bit");
+
 			string hash = context.Request.QueryString["hash"] ?? throw new ApplicationException("hash not passed");
 
 			string priority = context.Request.QueryString["priority"];
@@ -338,6 +337,9 @@ namespace dome_bt
 
 		public void _api_file(HttpListenerContext context, StreamWriter writer)
 		{
+			if (Globals.ReadyTime == Globals.StartTime)
+				throw new ApplicationException("Not ready try in a bit");
+
 			//	MachineRom		http://localhost:12381/api/file?machine=@
 			//	MachineDisk		http://localhost:12381/api/file?machine=@&disk=@
 			//	SoftwareRom		http://localhost:12381/api/file?list=@&software=@
@@ -428,7 +430,19 @@ namespace dome_bt
 			file.piece_count = fileInfo.PieceCount;
 
 			writer.WriteLine(file.ToString(Formatting.Indented));
+		}
 
+		public void _api_stop(HttpListenerContext context, StreamWriter writer)
+		{
+			if (Globals.ReadyTime == Globals.StartTime)
+				throw new ApplicationException("Not ready try in a bit");
+
+			Globals.BitTorrent.AskStop = true;
+
+			dynamic json = new JObject();
+			json.message = "OK";
+
+			writer.WriteLine(json.ToString(Formatting.Indented));
 		}
 
 		private string HTML = @"

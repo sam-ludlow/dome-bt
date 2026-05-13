@@ -1,11 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace dome_bt
 {
 	internal class Program
 	{
 		static int Main(string[] args)
+		{
+			return MainAsync(args).GetAwaiter().GetResult();
+		}
+
+		private static async Task<int> MainAsync(string[] args)
 		{
 			if (args.Length > 0 && args[0].Contains("=") == false)
 				args[0] = $"operation={args[0]}";
@@ -28,7 +34,7 @@ namespace dome_bt
 				switch (arguments["operation"])
 				{
 					case "convert":
-						return processor.Convert(arguments["target"]).Result;
+						return await processor.ConvertAsync(arguments["target"]);
 
 					default:
 						throw new ApplicationException($"Unknown operation: {arguments["operation"]}");
@@ -36,7 +42,7 @@ namespace dome_bt
 			}
 			else
 			{
-				return processor.Run().Result;
+				return await processor.RunAsync();
 			}
 		}
 	}

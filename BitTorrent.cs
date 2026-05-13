@@ -90,14 +90,12 @@ namespace dome_bt
 
 		}
 
-		public void Run()
+		public async Task RunAsync()
 		{
-			var task = Worker();
-
 			Exception error = null;
 			try
 			{
-				task.Wait();
+				await WorkerAsync();
 			}
 			catch (Exception e)
 			{
@@ -106,7 +104,18 @@ namespace dome_bt
 			}
 			finally
 			{
-				ShutDown();
+				Tools.ConsoleHeading(1, $"Shutdown");
+
+				foreach (var torrentManager in Engine.Torrents)
+				{
+					Console.Write($"stop torrent {torrentManager.Name} ...");
+					await torrentManager.StopAsync();
+					Console.WriteLine("...done");
+				}
+
+				Console.Write("stop engine ...");
+				await Engine.StopAllAsync();
+				Console.WriteLine("...done");
 			}
 
 			if (error != null)
@@ -116,15 +125,6 @@ namespace dome_bt
 				Console.ReadKey();
 				Environment.Exit(1);
 			}
-		}
-
-		public void ShutDown()
-		{
-            Tools.ConsoleHeading(1, $"Shutdown");
-
-			Console.Write("stop engine ...");
-			Engine.StopAllAsync().GetAwaiter().GetResult();
-			Console.WriteLine("...done");
 		}
 
 		private static readonly string PayloadKey = "RRt08v+YWc2+910RGOhZO7DrNVnHKae8MDJyJNOd950=";
@@ -146,7 +146,7 @@ namespace dome_bt
 			}
 		}
 
-		public async Task Worker()
+		public async Task WorkerAsync()
 		{
 			int pad = 0;
 
@@ -337,7 +337,7 @@ namespace dome_bt
 			Globals.ReadyTime = DateTime.Now;
 
 			//
-			// Processing
+			// UI Main Loop
 			//
 			Tools.ConsoleHeading(1, $"All Torrents Ready");
 

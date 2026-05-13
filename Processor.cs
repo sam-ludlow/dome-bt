@@ -133,8 +133,18 @@ $$$$$$$  | $$$$$$  |$$ | \_/ $$ |$$$$$$$$\       $$$$$$$  |  $$ |
 			}
 		}
 
+		public async Task<int> RunAsync()
+		{
+			WebServer webServer = new WebServer();
+			webServer.StartListener();
 
-		public async Task<int> Convert(string targetDirectory)
+			Globals.BitTorrent = new BitTorrent();
+			await Globals.BitTorrent.RunAsync();
+
+			return 0;
+		}
+
+		public async Task<int> ConvertAsync(string targetDirectory)
 		{
 			string[] cores = Globals.Cores.ToArray();
 			string[] urls = Globals.Config["magnets"].Split(',').Select(x => x.Trim()).ToArray();
@@ -238,17 +248,6 @@ $$$$$$$  | $$$$$$  |$$ | \_/ $$ |$$$$$$$$\       $$$$$$$  |  $$ |
 			}
 
 			return newCount;
-		}
-
-		public async Task<int> Run()
-		{
-			WebServer webServer = new WebServer();
-			webServer.StartListener();
-
-			Globals.BitTorrent = new BitTorrent();
-			Globals.BitTorrent.Run();
-
-			return 0;
 		}
 	}
 }
