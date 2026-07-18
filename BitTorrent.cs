@@ -20,7 +20,7 @@ namespace dome_bt
 
 		public bool AskStop = false;
 
-		private int PortNumber = 0;
+		public int PortNumber = 0;
 
 		private int MaximumConnectionsPerTorrent = 100;
 
@@ -116,7 +116,9 @@ namespace dome_bt
 			}
 			finally
 			{
-				Tools.ConsoleHeading(1, $"Shutdown");
+				Tools.ConsoleClearBottom();
+
+				Tools.ConsoleHeading(1, $"Shutdown - You can close this window (DOME-BT) if you can't be bothered to wait.");
 
 				foreach (var torrentManager in Engine.Torrents)
 				{
@@ -266,7 +268,6 @@ namespace dome_bt
 
 			foreach (TorrentInfo torrentInfo in torrentInfos)
 			{
-				//	Torrent torrent
 				Console.Write($"{torrentInfo.Name} ...");
 				var torrentManager = await Engine.AddAsync(torrentInfo.Torrent, Globals.DirectoryDownloads, TorrentSettings);
 				torrentInfo.TorrentManager = torrentManager;
@@ -353,11 +354,24 @@ namespace dome_bt
 			//
 			Tools.ConsoleHeading(1, $"All Torrents Ready");
 
+			int windowWidth = 0;
+			int windowHeight = 0;
+
 			while (AskStop == false)
 			{
 				await Task.Delay(5000);
 
-				Console.Clear();
+				if (windowWidth != Console.WindowWidth || windowHeight != Console.WindowHeight)
+				{
+					Console.Clear();
+
+					windowWidth = Console.WindowWidth;
+					windowHeight = Console.WindowHeight;
+				}
+				else
+				{
+					Console.SetCursorPosition(0, 0);
+				}
 
 				long dataBytesReceived = 0;
 				long dataBytesSent = 0;
@@ -381,8 +395,6 @@ namespace dome_bt
 						$"{Tools.DataSizeText(manager.Monitor.DataBytesReceived).PadLeft(24)}   {Tools.DataSizeText(manager.Monitor.DataBytesSent).PadLeft(24)}");
 				}
 			}
-
-			Console.WriteLine("Asked to stop.");
 		}
 	}
 }

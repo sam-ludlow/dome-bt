@@ -6,9 +6,9 @@ namespace dome_bt
 {
 	internal class Program
 	{
-		static int Main(string[] args)
+		static async Task<int> Main(string[] args)
 		{
-			return MainAsync(args).GetAwaiter().GetResult();
+			return await MainAsync(args);
 		}
 
 		private static async Task<int> MainAsync(string[] args)

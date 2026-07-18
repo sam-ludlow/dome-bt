@@ -46,6 +46,17 @@ namespace dome_bt
 			ConsoleRule(head);
 		}
 
+		public static void ConsoleClearBottom()
+		{
+			int top = Console.CursorTop;
+			for (int row = top; row < Console.WindowHeight; row++)
+			{
+				Console.SetCursorPosition(0, row);
+				Console.Write(new string(' ', Console.WindowWidth));
+			}
+			Console.SetCursorPosition(0, top);
+		}
+
 		public static void ReportError(Exception e, string title)
 		{
 			Console.WriteLine();

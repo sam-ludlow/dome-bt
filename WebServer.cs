@@ -114,9 +114,6 @@ namespace dome_bt
 							if (e is TargetInvocationException && e.InnerException != null)
 								e = e.InnerException;
 
-							Tools.ConsoleHeading(2, new string[] { "Web Request Error", context.Request.Url.PathAndQuery, e.Message });
-							Console.WriteLine(e.ToString());
-
 							ErrorResponse(context, writer, e);
 						}
 					}
@@ -145,6 +142,13 @@ namespace dome_bt
 			json.error = e.ToString();
 
 			writer.WriteLine(json.ToString(Formatting.Indented));
+
+			if (status != 404)
+			{
+				Tools.ConsoleClearBottom();
+				Tools.ConsoleHeading(2, new string[] { $"API Request Error - {DateTime.Now}", $"{status} - {context.Request.Url.PathAndQuery}" });
+				Console.WriteLine(e.ToString());
+			}
 		}
 
 		public void _api_info(HttpListenerContext context, StreamWriter writer)
@@ -153,6 +157,7 @@ namespace dome_bt
 
 			json.version = Globals.AssemblyVersion;
 			json.pid = Globals.Pid;
+			json.port_number = Globals.BitTorrent.PortNumber;
 			json.cores = new JArray(Globals.Cores);
 			json.priorities = new JArray(Enum.GetNames(typeof(Priority)));
 			json.start_time = Globals.StartTime;
@@ -230,13 +235,6 @@ namespace dome_bt
 
 			json.total_bytes_received_text = Tools.DataSizeText(dataBytesReceived);
 			json.total_bytes_sent_text = Tools.DataSizeText(dataBytesSent);
-
-			//
-			// Magnets	TODO: Depreachiate
-			//
-
-			dynamic magnets = new JArray();
-			json.magnets = magnets;
 
 			//
 			// Peer Listeners
