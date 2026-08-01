@@ -166,10 +166,7 @@ namespace dome_bt
 			json.cache_directory = Globals.DirectoryCache;
 
 			if (Globals.ReadyTime != Globals.StartTime)
-			{
-				json.ready_minutes = (Globals.ReadyTime - Globals.StartTime).TotalMinutes;  //	TODO: Depreachiate
 				json.ready_seconds = (int)Math.Ceiling((Globals.ReadyTime - Globals.StartTime).TotalSeconds);
-			}
 
 			ClientEngine engine = Globals.BitTorrent.Engine;
 
@@ -237,29 +234,29 @@ namespace dome_bt
 			json.total_bytes_sent_text = Tools.DataSizeText(dataBytesSent);
 
 			//
-			// Peer Listeners
+			// Peer Listeners - not in v3.0.2 - don't know what I was building before?
 			//
-			JArray peerListeners = new JArray();
-			if (engine != null)
-			{
-				foreach (var listener in engine.PeerListeners)
-				{
-					dynamic listen = new JObject();
-					if (listener.LocalEndPoint != null)
-					{
-						listen.local_address = listener.LocalEndPoint.Address.ToString();
-						listen.local_port = listener.LocalEndPoint.Port;
-					}
-					if (listener.PreferredLocalEndPoint != null)
-					{
-						listen.preferred_local_address = listener.PreferredLocalEndPoint.Address.ToString();
-						listen.preferred_local_port = listener.PreferredLocalEndPoint.Port;
-					}
-					listen.status = listener.Status.ToString();
-					peerListeners.Add(listen);
-				}
-			}
-			json.peer_listeners = peerListeners;
+			//JArray peerListeners = new JArray();
+			//if (engine != null)
+			//{
+			//	foreach (var listener in engine.PeerListeners)
+			//	{
+			//		dynamic listen = new JObject();
+			//		if (listener.LocalEndPoint != null)
+			//		{
+			//			listen.local_address = listener.LocalEndPoint.Address.ToString();
+			//			listen.local_port = listener.LocalEndPoint.Port;
+			//		}
+			//		if (listener.PreferredLocalEndPoint != null)
+			//		{
+			//			listen.preferred_local_address = listener.PreferredLocalEndPoint.Address.ToString();
+			//			listen.preferred_local_port = listener.PreferredLocalEndPoint.Port;
+			//		}
+			//		listen.status = listener.Status.ToString();
+			//		peerListeners.Add(listen);
+			//	}
+			//}
+			//json.peer_listeners = peerListeners;
 
 			//
 			// Port Mappings

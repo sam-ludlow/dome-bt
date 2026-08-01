@@ -10,37 +10,35 @@ BitTorrent client for use with `MAME-AO`.
 https://github.com/sam-ludlow/mame-ao
 
 ## Building from Source
-If you don't trust me you can build from source.
+Not using GitHub actions yet.
 
-### monotorrent
+### Preparing Monotorrent
 DOME-BT uses the `monotorrent` library, offical GitHub here https://github.com/alanmcgovern/monotorrent
 
-When monotorrent starts Torrents all the files are set to download by default. We don't want this as the Torrents are massive.
+Monotorrent normally starts with all files set to download. We don't want this and changing them at startup takes too long.
 
-As there are so many files in some Torrents then setting the priority at startup takes ages.
+So DOME-BT uses a modified version, here are the steps for preparing `monotorrent` to build DOME-BT.
 
-So DOME-BT uses a modified version here https://github.com/sam-ludlow/monotorrent/tree/default-file-priority
+![dome-bt monotorrent modification](https://raw.githubusercontent.com/sam-ludlow/dome-bt/main/images/dome-bt-monotorrent-modification.png)
 
-Only change is at startup all files priority is set to `Priority.DoNotDownload`.
+- Clone latest stable release that works with .net Framework `git clone --branch release-v3.0.2 https://github.com/alanmcgovern/monotorrent.git` (you will have a detached HEAD, don't wrorry)
+- Open solution `src\MonoTorrent.sln`
+- Install required .net runtimes
+- Search for `= Priority.Normal` you should find it in `src\MonoTorrent.Client\MonoTorrent.Client\Managers\TorrentFileInfo.cs`
+- Make the code change `Priority.Normal` => `Priority.DoNotDownload`
+- Change solution config to Release
+- Rebuild solution
+- Observe binaries for .net Framework in `src\MonoTorrent.Client\bin\Release\net472`
 
-NOTE: DOME-BT can use the default `monotorrent` library, it will just take longer to start up the Torrents.
 
-### Building
 
-Clone these to repos, ensure `monotorrent` is using the `default-file-priority` branch.
-
-```
-git clone -b default-file-priority git@github.com:sam-ludlow/monotorrent.git
-```
-
+### Building DOME-BT
+Clone DOME-BT repo and build it.
 ```
 git clone git@github.com:sam-ludlow/dome-bt.git
 ```
-Do a `Release` Build of `monotorrent` first, solution file `monotorrent\src\MonoTorrent.sln`.
 
-You can now build `dome-bt`, solution file `dome-bt\dome-bt.sln`.
-
-Its just linking to the DLLs at the moment
+Ensure the `monotorrent` directory is parallel, its just linking to the DLLs at the moment.
 
 ```
     <Reference Include="MonoTorrent">
