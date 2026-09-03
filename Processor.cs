@@ -8,9 +8,9 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
+using Newtonsoft.Json.Linq;
 using MonoTorrent;
 using MonoTorrent.Client;
-using Newtonsoft.Json.Linq;
 
 namespace dome_bt
 {
@@ -22,6 +22,7 @@ namespace dome_bt
 		public string Version;
 		public string Hash;
 		public string Magnet;
+		public string DatFile;
 
 		public Torrent Torrent;
 		public TorrentManager TorrentManager;
@@ -132,25 +133,18 @@ $$$$$$$  | $$$$$$  |$$ | \_/ $$ |$$$$$$$$\       $$$$$$$  |  $$ |
 
 		public async Task<int> ConvertAsync(string targetDirectory)
 		{
-			string[] cores = Globals.Cores.ToArray();
 			string[] urls = Globals.Config.Get("magnets").Split(',').Select(x => x.Trim()).ToArray();
 
-			Dictionary<string, TorrentInfo[]> coreMagnetInfos = new Dictionary<string, TorrentInfo[]>();
+			if (urls.Length != 4)
+				throw new ApplicationException("magnets should be 4 items (mame, hbmame, pinmame, pinball)");
 
-			for (int index = 0; index < cores.Length; ++index)
+			Dictionary<string, TorrentInfo[]> coreMagnetInfos = new Dictionary<string, TorrentInfo[]>()
 			{
-				string core = cores[index];
-				string url = urls[index];
-
-				TorrentInfo[] magnetInfos = PleasureDome.ParseMagentLink(core, url);
-				coreMagnetInfos.Add(core, magnetInfos);
-
-				foreach (TorrentInfo magnetInfo in magnetInfos)
-				{
-					magnetInfo.MagnetLink = MagnetLink.Parse(magnetInfo.Magnet);
-					magnetInfo.Hash = magnetInfo.MagnetLink.InfoHashes.V1OrV2.ToHex();
-				}
-			}
+				{ "mame", PleasureDome.ParseMameMagentLink("mame", urls[0]) },
+				{ "hbmame", PleasureDome.ParseMameMagentLink("hbmame", urls[1]) },
+				{ "pinmame", PleasureDome.ParsePinMAMEMagentLink(urls[2]) },
+				{ "pinball", PleasureDome.ParsePinballMagentLink(urls[3]) },
+			};
 
 			BitTorrent bitTorrent = new BitTorrent();
 
@@ -163,7 +157,8 @@ $$$$$$$  | $$$$$$  |$$ | \_/ $$ |$$$$$$$$\       $$$$$$$  |  $$ |
 				foreach (var magnetInfo in coreMagnetInfos[core])
 				{
 					Console.Write($"{magnetInfo.Name} ...");
-					await bitTorrent.Engine.AddAsync(magnetInfo.MagnetLink, Globals.DirectoryDownloads, bitTorrent.TorrentSettings);
+					var torrentManager = await bitTorrent.Engine.AddAsync(magnetInfo.MagnetLink, Globals.DirectoryDownloads, bitTorrent.TorrentSettings);
+					magnetInfo.Name = torrentManager.Name;
 					Console.WriteLine("...done");
 				}
 			}
@@ -219,6 +214,8 @@ $$$$$$$  | $$$$$$  |$$ | \_/ $$ |$$$$$$$$\       $$$$$$$  |  $$ |
 					json.version = magnetInfo.Version;
 					json.hash = magnetInfo.Hash;
 					json.magnet = magnetInfo.Magnet;
+					if (magnetInfo.DatFile != null)
+						json.dat = magnetInfo.DatFile;
 					json.torrent = System.Convert.ToBase64String(File.ReadAllBytes(zipFilename));
 
 					array.Add(json);
