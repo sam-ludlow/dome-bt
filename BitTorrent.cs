@@ -22,7 +22,7 @@ namespace dome_bt
 
 		public int PortNumber = 0;
 
-		private int MaximumConnectionsPerTorrent = 100;
+		private int MaximumConnectionsPerTorrent = 80;
 
 		private readonly double MegaBitsToBytes = 125000.0;
         private double MaximumDownloadRate = 0;
@@ -94,7 +94,7 @@ namespace dome_bt
 
 			Tools.ConsoleHeading(1, new string[] { "Engine Settings", "(0 = No limit)" });
 
-			Console.WriteLine($"Maximum Connections   :{engineSettings.MaximumConnections} (Magnets:{count} X Max Per Torrent: {MaximumConnectionsPerTorrent})");
+			Console.WriteLine($"Maximum Connections   : {engineSettings.MaximumConnections} (Magnets:{count} X Max Per Torrent: {MaximumConnectionsPerTorrent})");
 			Console.WriteLine($"Maximum Download Rate : {engineSettings.MaximumDownloadRate} B/s ({MaximumDownloadRate} Mbit/s)");
 			Console.WriteLine($"Maximum Upload Rate   : {engineSettings.MaximumUploadRate} B/s ({MaximumUploadRate} Mbit/s)");
 
