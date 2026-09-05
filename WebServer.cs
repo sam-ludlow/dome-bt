@@ -182,6 +182,9 @@ namespace dome_bt
 					torrent.version = torrentInfo.Version;
 					torrent.magnet = torrentInfo.Magnet;
 
+					if (torrentInfo.DatFile != null)
+						torrent.dat = torrentInfo.DatFile;
+
 					torrent.file_count = torrentManager.Files.Count;
 					torrent.state = torrentManager.State.ToString();
 					torrent.has_metadata = torrentManager.HasMetadata;

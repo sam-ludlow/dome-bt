@@ -213,6 +213,7 @@ namespace dome_bt
 									Version = (string)item.version,
 									Hash = (string)item.hash,
 									Magnet = (string)item.magnet,
+									DatFile = (string)item.dat,
 
 									Torrent = torrent,
 								};
