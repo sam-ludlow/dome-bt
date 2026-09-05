@@ -21,7 +21,7 @@ So DOME-BT uses a modified version, here are the steps for preparing `monotorren
 
 ![dome-bt monotorrent modification](https://raw.githubusercontent.com/sam-ludlow/dome-bt/main/images/dome-bt-monotorrent-modification.png)
 
-- Clone latest stable release that works with .net Framework `git clone --branch release-v3.0.2 https://github.com/alanmcgovern/monotorrent.git` (you will have a detached HEAD, don't wrorry)
+- Clone latest stable release that works with .net Framework `git clone --branch release-v3.0.3-beta-0049 https://github.com/alanmcgovern/monotorrent.git` (you will have a detached HEAD, don't wrorry)
 - Open solution `src\MonoTorrent.sln`
 - Install required .net runtimes
 - Search for `= Priority.Normal` you should find it in `src\MonoTorrent.Client\MonoTorrent.Client\Managers\TorrentFileInfo.cs`

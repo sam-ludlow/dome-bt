@@ -215,7 +215,7 @@ $$$$$$$  | $$$$$$  |$$ | \_/ $$ |$$$$$$$$\       $$$$$$$  |  $$ |
 					json.hash = magnetInfo.Hash;
 					json.magnet = magnetInfo.Magnet;
 					if (magnetInfo.DatFile != null)
-						json.dat = magnetInfo.DatFile;
+						json.dat = magnetInfo.DatFile.Replace(" ", "%20");
 					json.torrent = System.Convert.ToBase64String(File.ReadAllBytes(zipFilename));
 
 					array.Add(json);

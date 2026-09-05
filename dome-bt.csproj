@@ -51,15 +51,14 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="HtmlAgilityPack, Version=1.12.4.0, Culture=neutral, PublicKeyToken=bd319b19eaf3b43a, processorArchitecture=MSIL">
-      <HintPath>packages\HtmlAgilityPack.1.12.4\lib\Net45\HtmlAgilityPack.dll</HintPath>
+    <Reference Include="HtmlAgilityPack, Version=1.13.0.0, Culture=neutral, PublicKeyToken=bd319b19eaf3b43a, processorArchitecture=MSIL">
+      <HintPath>packages\HtmlAgilityPack.1.13.0\lib\Net45\HtmlAgilityPack.dll</HintPath>
     </Reference>
     <Reference Include="MonoTorrent">
       <HintPath>..\monotorrent\src\MonoTorrent.Client\bin\Release\net472\MonoTorrent.dll</HintPath>
     </Reference>
-    <Reference Include="MonoTorrent.BEncoding, Version=2.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\monotorrent\src\MonoTorrent.BEncoding\bin\Release\net472\MonoTorrent.BEncoding.dll</HintPath>
+    <Reference Include="MonoTorrent.BEncoding">
+      <HintPath>..\monotorrent\src\MonoTorrent.Client\bin\Release\net472\MonoTorrent.BEncoding.dll</HintPath>
     </Reference>
     <Reference Include="MonoTorrent.Client">
       <HintPath>..\monotorrent\src\MonoTorrent.Client\bin\Release\net472\MonoTorrent.Client.dll</HintPath>
@@ -73,7 +72,7 @@
     <Reference Include="System.IO.Compression.FileSystem" />
     <Reference Include="System.Memory, Version=4.0.5.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\monotorrent\src\MonoTorrent.BEncoding\bin\Release\net472\System.Memory.dll</HintPath>
+      <HintPath>..\monotorrent\src\MonoTorrent.Client\bin\Release\net472\System.Memory.dll</HintPath>
     </Reference>
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
