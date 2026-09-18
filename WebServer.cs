@@ -140,6 +140,7 @@ namespace dome_bt
 			json.port_number = Globals.BitTorrent.PortNumber;
 			json.cores = new JArray(Globals.Cores);
 			json.priorities = new JArray(Enum.GetNames(typeof(Priority)));
+			json.torrent_states = new JArray(Enum.GetNames(typeof(TorrentState)));
 			json.start_time = Globals.StartTime;
 			json.time_now = DateTime.Now;
 			json.run_time_text = Tools.TimeTookText(DateTime.Now - Globals.StartTime);
@@ -278,6 +279,38 @@ namespace dome_bt
 			writer.WriteLine(json.ToString(Formatting.Indented));
 		}
 
+		public void _api_stop_torrent(HttpListenerContext context, StreamWriter writer)
+		{
+			string hash = context.Request.QueryString["hash"] ?? throw new ApplicationException("hash not passed");
+
+			TorrentManager manager;
+			lock (Globals.TorrentInfos)
+				manager = Globals.TorrentInfos.Single(x => x.Hash == hash).TorrentManager;
+
+			manager.StopAsync();
+
+			dynamic json = new JObject();
+			json.message = "OK";
+
+			writer.WriteLine(json.ToString(Formatting.Indented));
+		}
+
+		public void _api_start_torrent(HttpListenerContext context, StreamWriter writer)
+		{
+			string hash = context.Request.QueryString["hash"] ?? throw new ApplicationException("hash not passed");
+
+			TorrentManager manager;
+			lock (Globals.TorrentInfos)
+				manager = Globals.TorrentInfos.Single(x => x.Hash == hash).TorrentManager;
+
+			manager.StartAsync();
+
+			dynamic json = new JObject();
+			json.message = "OK";
+
+			writer.WriteLine(json.ToString(Formatting.Indented));
+		}
+
 		public void _api_files(HttpListenerContext context, StreamWriter writer)
 		{
 			if (Globals.ReadyTime == Globals.StartTime)
@@ -393,9 +426,10 @@ namespace dome_bt
 					throw new ApplicationException($"Bad core: {core}");
 			}
 
-			TorrentManager manager;
+			TorrentInfo torrentInfo;
 			lock (Globals.TorrentInfos)
-				manager = Globals.TorrentInfos.Where(x => x.Core == core && x.Type == type).Single().TorrentManager;
+				torrentInfo = Globals.TorrentInfos.Single(x => x.Core == core && x.Type == type);
+			TorrentManager manager = torrentInfo.TorrentManager;
 
 			IEnumerable<ITorrentManagerFile> files = manager.Files.Where(f => f.Path == path);
 
@@ -423,6 +457,7 @@ namespace dome_bt
 			file.filename = fileInfo.FullPath;
 			file.piece_start_index = fileInfo.StartPieceIndex;
 			file.piece_count = fileInfo.PieceCount;
+			file.torrent_hash = torrentInfo.Hash;
 
 			writer.WriteLine(file.ToString(Formatting.Indented));
 		}

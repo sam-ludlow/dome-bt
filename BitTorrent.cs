@@ -32,13 +32,6 @@ namespace dome_bt
 
 		public BitTorrent()
 		{
-			var torrentSettings = new TorrentSettingsBuilder
-			{
-				MaximumConnections = MaximumConnectionsPerTorrent,
-				AllowPeerExchange = true,
-				AllowDht = true,
-			};
-			TorrentSettings = torrentSettings.ToSettings();
 		}
 
 		public void Setup(int count)
@@ -67,6 +60,14 @@ namespace dome_bt
 				PortNumber = Int32.Parse(Globals.Config.Get("port-number"));
 			}
 
+			var torrentSettings = new TorrentSettingsBuilder
+			{
+				MaximumConnections = MaximumConnectionsPerTorrent,
+				AllowPeerExchange = true,
+				AllowDht = true,
+			};
+			TorrentSettings = torrentSettings.ToSettings();
+
 			var engineSettings = new EngineSettingsBuilder
 			{
 				AllowPortForwarding = true,
@@ -85,7 +86,7 @@ namespace dome_bt
 
 				DhtEndPoint = new IPEndPoint(IPAddress.Any, PortNumber),
 
-				MaximumConnections = count * MaximumConnectionsPerTorrent,
+				MaximumConnections = count * MaximumConnectionsPerTorrent * 2,
 				MaximumDownloadRate = (int)(MaximumDownloadRate * MegaBitsToBytes),
 				MaximumUploadRate = (int)(MaximumUploadRate * MegaBitsToBytes),
 
@@ -94,9 +95,9 @@ namespace dome_bt
 
 			Tools.ConsoleHeading(1, new string[] { "Engine Settings", "(0 = No limit)" });
 
-			Console.WriteLine($"Maximum Connections   : {engineSettings.MaximumConnections} (Magnets:{count} X Max Per Torrent: {MaximumConnectionsPerTorrent})");
-			Console.WriteLine($"Maximum Download Rate : {engineSettings.MaximumDownloadRate} B/s ({MaximumDownloadRate} Mbit/s)");
-			Console.WriteLine($"Maximum Upload Rate   : {engineSettings.MaximumUploadRate} B/s ({MaximumUploadRate} Mbit/s)");
+			Console.WriteLine($"Max Connections per Torrent : {MaximumConnectionsPerTorrent}");
+			Console.WriteLine($"Max Download Rate           : {engineSettings.MaximumDownloadRate} B/s ({MaximumDownloadRate} Mbit/s)");
+			Console.WriteLine($"Max Upload Rate             : {engineSettings.MaximumUploadRate} B/s ({MaximumUploadRate} Mbit/s)");
 
             Engine = new ClientEngine(engineSettings.ToSettings());
 
