@@ -68,6 +68,44 @@ namespace dome_bt
 			return results.ToArray();
 		}
 
+		public static TorrentInfo[] ParseFBNeoMagentLink(string url)
+		{
+			var info = new TorrentInfo();
+
+			foreach (string[] textHref in ExtractLinks(url))
+			{
+				string text = textHref[0];
+				string href = textHref[1];
+
+				if (text.Contains("debug ROMs (split)") == false)
+					continue;
+
+				if (href.StartsWith("magnet:") == true)
+					info.Magnet = href;
+				else
+					info.DatFile = href;
+
+				if (info.Version == null)
+				{
+					info.Name = text;
+
+					info.Version = text;
+					int index = info.Version.IndexOf(" ");
+					info.Version = info.Version.Substring(index + 1);
+					index = info.Version.IndexOf(" ");
+					index = info.Version.IndexOf(" ", index + 1);
+					info.Version = info.Version.Substring(0, index);
+				}
+			}
+
+			info.Type = "fbneo";
+
+			info.MagnetLink = MagnetLink.Parse(info.Magnet);
+			info.Hash = info.MagnetLink.InfoHashes.V1OrV2.ToHex();
+
+			return new TorrentInfo[] { info };
+		}
+
 		public static TorrentInfo[] ParsePinMAMEMagentLink(string url)
 		{
 			var info = new TorrentInfo();

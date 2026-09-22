@@ -135,20 +135,23 @@ $$$$$$$  | $$$$$$  |$$ | \_/ $$ |$$$$$$$$\       $$$$$$$  |  $$ |
 		{
 			string[] urls = Globals.Config.Get("magnets").Split(',').Select(x => x.Trim()).ToArray();
 
-			if (urls.Length != 4)
-				throw new ApplicationException("magnets should be 4 items (mame, hbmame, pinmame, pinball)");
+			if (urls.Length != 5)
+				throw new ApplicationException("magnets should be 5 items (mame, hbmame, fbneo, pinmame, pinball)");
 
 			Dictionary<string, TorrentInfo[]> coreMagnetInfos = new Dictionary<string, TorrentInfo[]>()
 			{
 				{ "mame", PleasureDome.ParseMameMagentLink("mame", urls[0]) },
 				{ "hbmame", PleasureDome.ParseMameMagentLink("hbmame", urls[1]) },
-				{ "pinmame", PleasureDome.ParsePinMAMEMagentLink(urls[2]) },
-				{ "pinball", PleasureDome.ParsePinballMagentLink(urls[3]) },
+				{ "fbneo", PleasureDome.ParseFBNeoMagentLink(urls[2]) },
+				{ "pinmame", PleasureDome.ParsePinMAMEMagentLink(urls[3]) },
+				{ "pinball", PleasureDome.ParsePinballMagentLink(urls[4]) },
 			};
+
+			int newCount = 0;
 
 			BitTorrent bitTorrent = new BitTorrent();
 
-			bitTorrent.Setup(coreMagnetInfos.Values.Select(x => x.Length).Sum());
+			bitTorrent.Setup(coreMagnetInfos.Values.Sum(x => x.Length));
 
 			Tools.ConsoleHeading(1, new string[] { "Add Magnets" });
 
@@ -164,8 +167,6 @@ $$$$$$$  | $$$$$$  |$$ | \_/ $$ |$$$$$$$$\       $$$$$$$  |  $$ |
 			}
 
 			Tools.ConsoleHeading(1, new string[] { "Get Metadata" });
-
-			int newCount = 0;
 
 			foreach (var torrentManager in bitTorrent.Engine.Torrents)
 			{

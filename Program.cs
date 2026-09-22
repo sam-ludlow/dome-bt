@@ -8,11 +8,6 @@ namespace dome_bt
 	{
 		static async Task<int> Main(string[] args)
 		{
-			return await MainAsync(args);
-		}
-
-		private static async Task<int> MainAsync(string[] args)
-		{
 			if (args.Length > 0 && args[0].Contains("=") == false)
 				args[0] = $"operation={args[0]}";
 
