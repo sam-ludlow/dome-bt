@@ -405,6 +405,13 @@ namespace dome_bt
 					}
 					break;
 
+				case "fbneo":
+					if (parameters.Count != 3 || parameters.ContainsKey("list") == false || parameters.ContainsKey("software") == false)
+						throw new ApplicationException("Bad Parameters");
+					type = "fbneo";
+					path = Path.Combine(parameters["list"], parameters["software"] + ".zip");
+					break;
+
 				case "pinmame":
 					if (parameters.Count != 2 || parameters.ContainsKey("machine") == false)
 						throw new ApplicationException("Bad Parameters");
@@ -532,6 +539,11 @@ namespace dome_bt
 	http://localhost:12381/api/file?core=hbmame&machine=@	<br/>
 	http://localhost:12381/api/file?core=hbmame&machine=@&disk=@	<br/>
 	http://localhost:12381/api/file?core=hbmame&list=@&software=@	<br/>
+</p>
+
+<h3>FBNeo</h3>
+<p>
+	http://localhost:12381/api/file?core=fbneo&list=@&software=@	<br/>
 </p>
 
 <h3>PinMAME</h3>

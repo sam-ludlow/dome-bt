@@ -192,68 +192,42 @@ namespace dome_bt
 
 					string body = Decrypt((string)json.body, (string)json.iv);
 
+					JArray items = JArray.Parse(body);
+
 					if (pass == 0)
 					{
-						JArray items = JArray.Parse(body);
-
 						HashSet<string> currentHashes = new HashSet<string>(items.Select(item => (string)item["hash"]));
 
 						if (existingHashes.IsSupersetOf(currentHashes) == true)
 						{
 							foreach (dynamic item in items)
 							{
+								Console.WriteLine($"HAVE\t{core}\t{item.type}\t{item.name}");
+
 								Torrent torrent = await Torrent.LoadAsync(Path.Combine(metadataDirectory, $"{item.hash}.torrent"));
-
-								Console.WriteLine($"HAVE\t{item.type}\t{item.name}");
-
-								TorrentInfo torrentInfo = new TorrentInfo()
-								{
-									Core = core,
-									Type = (string)item.type,
-									Name = (string)item.name,
-									Version = (string)item.version,
-									Hash = (string)item.hash,
-									Magnet = (string)item.magnet,
-									DatFile = (string)item.dat,
-
-									Torrent = torrent,
-								};
-								torrentInfos.Add(torrentInfo);
+								torrentInfos.Add(MakeTorrentInfo(core, item, torrent));
 							}
 							break;
 						}
 					}
 					else
 					{
-						foreach (dynamic item in JArray.Parse(body))
+						foreach (dynamic item in items)
 						{
+							Console.WriteLine($"NEW\t{core}\t{item.type}\t{item.name}");
+
 							Torrent torrent;
 							using (var targetStream = new MemoryStream())
 							{
 								using (var sourceStream = new MemoryStream(System.Convert.FromBase64String((string)item.torrent)))
-								using (var zipArchive = new ZipArchive(sourceStream))
-								using (var zipStream = zipArchive.Entries[0].Open())
-									zipStream.CopyTo(targetStream);
+									using (var zipArchive = new ZipArchive(sourceStream))
+										using (var zipStream = zipArchive.Entries[0].Open())
+											zipStream.CopyTo(targetStream);
 
 								targetStream.Position = 0;
 								torrent = Torrent.Load(targetStream);
 							}
-
-							Console.WriteLine($"NEW\t{item.type}\t{item.name}");
-
-							TorrentInfo torrentInfo = new TorrentInfo()
-							{
-								Core = core,
-								Type = (string)item.type,
-								Name = (string)item.name,
-								Version = (string)item.version,
-								Hash = (string)item.hash,
-								Magnet = (string)item.magnet,
-								DatFile = (string)item.dat,
-
-								Torrent = torrent,
-							};
-							torrentInfos.Add(torrentInfo);
+							torrentInfos.Add(MakeTorrentInfo(core, item, torrent));
 						}
 					}
 				}
@@ -394,10 +368,25 @@ namespace dome_bt
 
 				foreach (TorrentManager manager in Engine.Torrents)
 				{
-					Console.WriteLine($"{manager.Name.PadRight(pad)}   {manager.State.ToString().PadRight(12)}   {manager.OpenConnections.ToString().PadLeft(3)}   " +
-						$"{Tools.DataSizeText(manager.Monitor.DataBytesReceived).PadLeft(24)}   {Tools.DataSizeText(manager.Monitor.DataBytesSent).PadLeft(24)}");
+					Console.WriteLine($"{manager.Name.PadRight(pad)} {manager.State.ToString().PadRight(12)} {manager.OpenConnections.ToString().PadLeft(3)} " +
+						$"{Tools.DataSizeText(manager.Monitor.DataBytesReceived).PadLeft(24)} {Tools.DataSizeText(manager.Monitor.DataBytesSent).PadLeft(24)}");
 				}
 			}
+		}
+
+		private TorrentInfo MakeTorrentInfo(string core, dynamic item, Torrent torrent)
+		{
+			return new TorrentInfo()
+			{
+				Core = core,
+				Type = (string)item.type,
+				Name = (string)item.name,
+				Version = (string)item.version,
+				Hash = (string)item.hash,
+				Magnet = (string)item.magnet,
+				DatFile = (string)item.dat,
+				Torrent = torrent,
+			};
 		}
 	}
 }
