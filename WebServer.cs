@@ -311,6 +311,38 @@ namespace dome_bt
 			writer.WriteLine(json.ToString(Formatting.Indented));
 		}
 
+		public void _api_reload_torrent(HttpListenerContext context, StreamWriter writer)
+		{
+			string hash = context.Request.QueryString["hash"] ?? throw new ApplicationException("hash not passed");
+
+			TorrentInfo info;
+			lock (Globals.TorrentInfos)
+			{
+				info = Globals.TorrentInfos.Single(x => x.Hash == hash);
+				Globals.TorrentInfos.Remove(info);
+			}
+
+			_ = Task.Run(async () =>
+			{
+				await Globals.BitTorrent.Engine.RemoveAsync(info.Torrent, RemoveMode.KeepAllData);
+
+				string metadataDirectory = Path.Combine(Globals.DirectoryCache, "metadata");
+
+				info.Torrent = await Torrent.LoadAsync(Path.Combine(metadataDirectory, $"{hash}.torrent"));
+				info.TorrentManager = await Globals.BitTorrent.Engine.AddAsync(info.Torrent, Globals.DirectoryDownloads, Globals.BitTorrent.TorrentSettings);
+
+				lock (Globals.TorrentInfos)
+				{
+					Globals.TorrentInfos.Add(info);
+				}
+			});
+
+			dynamic json = new JObject();
+			json.message = "OK";
+
+			writer.WriteLine(json.ToString(Formatting.Indented));
+		}
+
 		public void _api_files(HttpListenerContext context, StreamWriter writer)
 		{
 			if (Globals.ReadyTime == Globals.StartTime)
