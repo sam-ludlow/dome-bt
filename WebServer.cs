@@ -438,10 +438,23 @@ namespace dome_bt
 					break;
 
 				case "fbneo":
-					if (parameters.Count != 3 || parameters.ContainsKey("list") == false || parameters.ContainsKey("software") == false)
-						throw new ApplicationException("Bad Parameters");
-					type = "fbneo";
-					path = Path.Combine(parameters["list"], parameters["software"] + ".zip");
+					if (parameters.Count == 3 && parameters.ContainsKey("list") && parameters.ContainsKey("software"))
+					{
+						type = "fbneo";
+						path = Path.Combine(parameters["list"], parameters["software"] + ".zip");
+					}
+					else
+					{
+						if (parameters.Count == 4 && parameters.ContainsKey("list") && parameters.ContainsKey("software") && parameters.ContainsKey("disk"))
+						{
+							type = "fbneo";
+							path = Path.Combine(parameters["list"], parameters["software"], parameters["disk"] + ".chd");
+						}
+						else
+						{
+							throw new ApplicationException("Bad Parameters");
+						}
+					}
 					break;
 
 				case "pinmame":
